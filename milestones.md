@@ -12,6 +12,13 @@ Use this with the following principles:
 - keep code simple and testable
 - preserve stable interfaces between modules
 
+## Current Progress
+
+- Milestone 0: completed
+- Milestone 1: completed
+- Last validated artifact: `debug/grid_overlay_*.png` with center alignment confirmed
+- Current focus: Milestone 2 (template loading + classification)
+
 ---
 
 ## Global Constraints
@@ -113,6 +120,21 @@ Project runs from `uv run python main.py`, loads config, and prints a startup su
 - `uv run python main.py` exits with status `0` when config valid.
 - invalid config exits non-zero with actionable error text.
 
+### Status
+
+Completed.
+
+Implemented:
+
+- `load_config(path: str) -> dict` with schema validation and fast-fail errors
+- startup summary output for board ROI, grid size, and debug mode
+- script entry point via `if __name__ == "__main__": raise SystemExit(main())`
+
+Validated:
+
+- `uv run python main.py`
+- `uv run pytest`
+
 ---
 
 ## Milestone 1 - Capture + Grid Mapping
@@ -146,6 +168,24 @@ Capture the board ROI from screen and map it to cell rectangles/centers correctl
 
 - overlay image exists and matches expected dimensions.
 - center points are visually aligned with tile centers.
+
+### Status
+
+Completed.
+
+Implemented:
+
+- `capture_board(config)` using `mss` and ROI from `config.json`
+- `get_cell_rect(...)` and `get_cell_center(...)` in `bot/grid.py`
+- `draw_grid_overlay(frame, config)` with grid lines and center dots
+- one-shot capture path via `uv run python main.py --capture-once`
+- debug image save to `debug_dir` via `save_debug_snapshot(...)`
+- interactive ROI helper script `calibrate_roi.py`
+
+Validated:
+
+- overlay files generated in `debug/`
+- alignment manually confirmed on real mirrored board
 
 ---
 

@@ -34,7 +34,7 @@ Build a Python bot that plays an Onet-style iPhone game through iPhone Mirroring
 
 ## 3) Tech Stack
 
-- Python 3.10+
+- Python 3.11+
 - `uv` for environment and dependency management
 - `opencv-python` for image matching
 - `numpy` for board matrix + solver
@@ -205,6 +205,13 @@ while running:
 
 ## 9) Implementation Roadmap
 
+### Progress Snapshot (2026-02-17)
+
+- Phase 0 complete
+- Phase 1 complete
+- Latest validation: grid overlay generated and visually aligned on mirrored board
+- Next phase: Phase 2 (tile classification)
+
 ## Phase 0 - Environment Setup
 
 - Initialize project with `uv`
@@ -224,6 +231,8 @@ uv run pytest
 
 Deliverable: project boots with `uv run python main.py`.
 
+Status: complete.
+
 ## Phase 1 - Calibration + Board Overlay
 
 - Implement manual ROI calibration
@@ -231,6 +240,8 @@ Deliverable: project boots with `uv run python main.py`.
 - Validate cell centers align with real tiles
 
 Deliverable: accurate board capture and grid mapping.
+
+Status: complete.
 
 ## Phase 2 - Tile Classification
 
