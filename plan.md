@@ -74,8 +74,9 @@ momo-bot/
   config.json
   templates/
     block.png
-    tile_01.png
-    tile_02.png
+    beer_blue.png
+    beer_white.png
+    cake_long.png
     ...
   bot/
     capture.py
@@ -125,7 +126,7 @@ This simplifies pathfinding around edges.
 ### `calibrate.py`
 
 - Capture board corners manually
-- Save `board_x`, `board_y`, `board_w`, `board_h`, `rows`, `cols` to `config.json`
+- Save `rows`, `cols`, `board_center_x`, `board_center_y`, `cell_w`, `cell_h`, `gap_x`, `gap_y` to `config.json`
 
 ### `grid.py`
 
@@ -135,6 +136,8 @@ This simplifies pathfinding around edges.
 ### `classify.py`
 
 - Load templates from `templates/`
+- Assign positive tile IDs from semantic filenames using deterministic alphabetical order
+- Keep `block.png` mapped to `-1` (non-matchable obstacle)
 - Classify each cell by highest template score
 - Return ID matrix and confidence matrix
 
@@ -164,12 +167,17 @@ This simplifies pathfinding around edges.
 
 `config.json` fields:
 
-- `board_x`, `board_y`, `board_w`, `board_h`
 - `rows`, `cols`
+- `board_center_x`, `board_center_y`
+- `cell_w`, `cell_h`
+- `gap_x`, `gap_y`
 - `match_threshold`
 - `min_margin_to_second_best`
 - `click_pause_ms`
 - `post_click_wait_ms`
+- `settle_wait_ms`
+- `stability_check_frames`
+- `stability_pixel_diff_threshold`
 - `full_rescan_every_n_moves`
 - `max_consecutive_failures`
 - `debug_enabled`
@@ -183,7 +191,7 @@ This simplifies pathfinding around edges.
 3. Ask solver for one valid pair
 4. If no pair -> stop (level complete or dead board)
 5. Click first tile, then second tile
-6. Wait for animation
+6. Wait for animation settle, then classify only on stable frame
 7. Update internal state (or full rescan if needed)
 8. Repeat
 
@@ -192,6 +200,7 @@ Pseudo:
 ```python
 while running:
     frame = capture_board()
+    frame = wait_until_stable(frame)
     board, confidence = build_board(frame)
     pair = solver.find_pair(board)
     if not pair:
@@ -245,8 +254,11 @@ Status: complete.
 
 ## Phase 2 - Tile Classification
 
-- Load templates
+- Load semantic templates (all matchable except `block.png`)
+- Map template IDs in alphabetical order for deterministic behavior
 - Classify all cells with score thresholds
+- Use fixed center-based geometry (`board_center_x`, `board_center_y`) and configured `cell/gap` pitch
+- Guard against transient animation frames with a short stability check before classification
 - Output board matrix and unknown count
 
 Deliverable: stable tile ID matrix on static screenshots.
@@ -299,7 +311,9 @@ Deliverable: autonomous multi-move run on real level.
 ## 11) Risk Controls
 
 - Keep mirroring window fixed (position, size, scale)
+- Use fixed center-based geometry and step sizes (`cell_w`, `cell_h`, `gap_x`, `gap_y`) for robust click/crop mapping
 - Use full-rescan fallback when confidence drops
+- Delay/retry classification until frame stabilizes after match animation
 - Stop on repeated mismatches instead of blind clicking
 - Keep debug snapshots enabled until stable
 

@@ -22,8 +22,8 @@ def test_config_exists_and_has_board_shape() -> None:
 
 def test_load_config_validates_missing_key(tmp_path: Path) -> None:
     bad_config = {
-        "board_x": 0,
-        "board_y": 0,
+        "rows": 10,
+        "cols": 7,
     }
     path = tmp_path / "bad.json"
     path.write_text(json.dumps(bad_config), encoding="utf-8")
@@ -34,12 +34,14 @@ def test_load_config_validates_missing_key(tmp_path: Path) -> None:
 
 def test_grid_geometry_and_overlay_shape() -> None:
     config = {
-        "board_x": 10,
-        "board_y": 20,
-        "board_w": 200,
-        "board_h": 100,
         "rows": 5,
         "cols": 4,
+        "board_center_x": 110,
+        "board_center_y": 70,
+        "cell_w": 44,
+        "cell_h": 18,
+        "gap_x": 8,
+        "gap_y": 2,
     }
     rect = get_cell_rect(2, 1, config)
     center = get_cell_center(2, 1, config)

@@ -26,12 +26,18 @@ Use this with the following principles:
 - Use Python 3.10+ and `uv` for environment/dependencies.
 - Assume iPhone Mirroring window is fixed in position and scale.
 - Use fixed board ROI from `config.json` for V1.
+- Board geometry uses fixed center + pitch:
+  - `board_center_x=3183`, `board_center_y=542`
+  - `cell_w=72`, `cell_h=70`
+  - `gap_x=6`, `gap_y=4`
 - Board encoding:
   - `0` = empty
   - `-1` = blocked tile
   - `1..N` = tile IDs
 - Internal board must be padded by 1 cell on all sides.
 - Avoid hidden global state; pass data through function inputs/outputs.
+- Board contents can shift after matches (up/down/left/right), but always remain inside capture ROI.
+- Post-match transient animation can corrupt one-shot captures; classification must use a settled/stable frame.
 
 ---
 
@@ -67,16 +73,21 @@ Keep these contracts stable while implementing.
 
 Required keys:
 
-- `board_x`: int
-- `board_y`: int
-- `board_w`: int
-- `board_h`: int
 - `rows`: int
 - `cols`: int
+- `board_center_x`: int
+- `board_center_y`: int
+- `cell_w`: int
+- `cell_h`: int
+- `gap_x`: int
+- `gap_y`: int
 - `match_threshold`: float
 - `min_margin_to_second_best`: float
 - `click_pause_ms`: int
 - `post_click_wait_ms`: int
+- `settle_wait_ms`: int
+- `stability_check_frames`: int
+- `stability_pixel_diff_threshold`: float
 - `full_rescan_every_n_moves`: int
 - `max_consecutive_failures`: int
 - `debug_enabled`: bool
@@ -159,7 +170,7 @@ Capture the board ROI from screen and map it to cell rectangles/centers correctl
 
 ### Required tasks
 
-1. Use `mss` to grab exact ROI (`board_x`, `board_y`, `board_w`, `board_h`).
+1. Use `mss` to grab exact ROI derived from geometry (`board_center_x`, `board_center_y`, `rows`, `cols`, `cell_w`, `cell_h`, `gap_x`, `gap_y`).
 2. Compute per-cell geometry from `rows` and `cols`.
 3. Draw visible grid lines and center points for debug.
 4. Save one overlay image to `debug_dir`.
@@ -212,7 +223,7 @@ Convert each board cell into tile ID + confidence with template matching.
 
 1. Define template naming convention:
    - `block.png` maps to `-1`
-   - `tile_XX.png` maps to positive integer IDs
+   - every other template filename maps to positive integer IDs by alphabetical order
 2. Per-cell classification:
    - optional preprocessing (grayscale, normalization)
    - match all templates
@@ -220,14 +231,18 @@ Convert each board cell into tile ID + confidence with template matching.
 3. Apply thresholds:
    - if below `match_threshold`, mark as `0` (unknown/empty for V1)
    - if best-second margin below `min_margin_to_second_best`, mark uncertain
-4. Emit confidence map and unknown count.
-5. Save a debug image with IDs rendered on top of grid.
+4. Add pre-classification stabilization:
+   - wait for `settle_wait_ms` after moves
+   - optionally require `stability_check_frames` captures whose pixel diff stays below `stability_pixel_diff_threshold`
+5. Emit confidence map and unknown count.
+6. Save a debug image with IDs and labels rendered on top of grid.
 
 ### Acceptance criteria
 
 - classification runs on a captured frame without crashing.
 - output matrix shape is `(rows, cols)`.
 - debug image shows per-cell labels and scores.
+- semantic template set works without requiring `tile_XX.png` naming.
 
 ---
 
