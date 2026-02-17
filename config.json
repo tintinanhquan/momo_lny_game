@@ -1,0 +1,16 @@
+{
+  "board_x": 3106,
+  "board_y": 298,
+  "board_w": 239,
+  "board_h": 286,
+  "rows": 10,
+  "cols": 7,
+  "match_threshold": 0.86,
+  "min_margin_to_second_best": 0.05,
+  "click_pause_ms": 80,
+  "post_click_wait_ms": 250,
+  "full_rescan_every_n_moves": 5,
+  "max_consecutive_failures": 4,
+  "debug_enabled": true,
+  "debug_dir": "debug"
+}
