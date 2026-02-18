@@ -8,7 +8,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from bot.debug import save_debug_snapshot
+from bot.debug import create_run_logger, save_debug_snapshot
 from bot.grid import draw_grid_overlay, get_cell_center, get_cell_rect
 from main import ConfigError, load_config
 
@@ -59,3 +59,16 @@ def test_save_debug_snapshot_writes_file(tmp_path: Path) -> None:
     config = {"debug_dir": str(tmp_path)}
     out = save_debug_snapshot(frame, "test_overlay", config)
     assert out.exists()
+
+
+def test_create_run_logger_writes_events_and_snapshots(tmp_path: Path) -> None:
+    config = {"debug_dir": str(tmp_path)}
+    logger = create_run_logger(config, run_name="smoke")
+    logger.log("hello")
+    frame = np.zeros((8, 8, 3), dtype=np.uint8)
+    snap = logger.save_snapshot(frame, "tiny")
+
+    assert logger.run_dir.exists()
+    assert logger.log_path.exists()
+    assert "hello" in logger.log_path.read_text(encoding="utf-8")
+    assert snap.exists()

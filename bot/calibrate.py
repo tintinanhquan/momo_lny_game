@@ -1,15 +1,33 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any
 
-import pyautogui
+try:
+    import pyautogui
+except ModuleNotFoundError as exc:
+    pyautogui = None  # type: ignore[assignment]
+    _PYAUTOGUI_IMPORT_ERROR = exc
+else:
+    _PYAUTOGUI_IMPORT_ERROR = None
+
+
+def _require_pyautogui() -> Any:
+    """Return pyautogui or raise with setup instructions."""
+    if pyautogui is None:
+        raise ModuleNotFoundError(
+            "Missing dependency 'pyautogui'. Install project dependencies with "
+            "'uv sync' (recommended) or 'python -m pip install pyautogui'."
+        ) from _PYAUTOGUI_IMPORT_ERROR
+    return pyautogui
 
 
 def _capture_point(prompt: str) -> tuple[int, int]:
+    mouse = _require_pyautogui()
     print(prompt)
     input("Press Enter to capture current mouse position...")
-    pos = pyautogui.position()
+    pos = mouse.position()
     print(f"Captured: ({pos.x}, {pos.y})")
     return int(pos.x), int(pos.y)
 
@@ -46,6 +64,15 @@ def format_config_snippet(roi: dict[str, Any]) -> str:
 
 
 def run_calibration() -> None:
+    _require_pyautogui()
     roi = calibrate_board()
     print("\nPaste these values into config.json:")
     print(format_config_snippet(roi))
+
+
+if __name__ == "__main__":
+    try:
+        run_calibration()
+    except ModuleNotFoundError as exc:
+        print(exc, file=sys.stderr)
+        sys.exit(1)

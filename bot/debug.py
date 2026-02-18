@@ -12,6 +12,41 @@ from bot.grid import draw_grid_overlay, get_cell_center_in_frame
 Frame = np.ndarray
 
 
+class RunLogger:
+    """Write per-run diagnostic logs and snapshots."""
+
+    def __init__(self, run_dir: Path) -> None:
+        self.run_dir = run_dir
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        self.log_path = self.run_dir / "events.log"
+
+    def log(self, message: str) -> None:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        with self.log_path.open("a", encoding="utf-8") as fh:
+            fh.write(f"{timestamp} | {message}\n")
+
+    def save_snapshot(self, frame: Frame, name: str) -> Path:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        safe_name = name.replace(" ", "_")
+        out_path = self.run_dir / f"{safe_name}_{timestamp}.png"
+        ok = cv2.imwrite(str(out_path), frame)
+        if not ok:
+            raise RuntimeError(f"Failed to write run snapshot to {out_path}")
+        self.log(f"snapshot saved: {out_path}")
+        return out_path
+
+
+def create_run_logger(config: dict[str, Any], run_name: str = "run") -> RunLogger:
+    """Create a timestamped per-run logger under debug_dir/runs."""
+    debug_dir = Path(config["debug_dir"])
+    run_root = debug_dir / "runs"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    run_dir = run_root / f"{run_name}_{timestamp}"
+    logger = RunLogger(run_dir)
+    logger.log("run logger initialized")
+    return logger
+
+
 def save_debug_snapshot(frame: Frame, name: str, config: dict[str, Any]) -> Path:
     """Save a frame to configured debug_dir with timestamp."""
     debug_dir = Path(config["debug_dir"])

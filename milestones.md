@@ -18,8 +18,9 @@ Use this with the following principles:
 - Milestone 1: completed
 - Milestone 2: completed
 - Milestone 3: completed
-- Last validated artifact: `uv run pytest -k solver` (8 passed)
-- Current focus: Milestone 4 (click execution)
+- Milestone 4: completed
+- Last validated artifact: `uv run pytest` (18 passed)
+- Current focus: Milestone 5 (runtime state + recovery)
 
 ---
 
@@ -357,6 +358,23 @@ Given a valid pair, click two corresponding screen coordinates safely.
 
 - dry run prints correct coordinates.
 - real run clicks expected cells with consistent timing.
+
+### Status
+
+Completed.
+
+Implemented:
+
+- `click_cell(cell, config, dry_run=False)` with bounds validation, center mapping, and `pyautogui.PAUSE` from `click_pause_ms`
+- `click_pair(pair, config, dry_run=False)` that clicks first then second, then waits `post_click_wait_ms`
+- CLI wiring for `--click-once` and `--dry-run` in `main.py` using one-shot flow: stable capture -> classify -> solve -> click
+- dry-run logging format for deterministic coordinate verification before real clicking
+- unit tests in `tests/test_clicker.py` for dry-run behavior, click ordering, pause/wait timing, and bounds errors
+
+Validated:
+
+- `uv run pytest -k clicker` (5 passed)
+- `uv run pytest` (18 passed)
 
 ---
 

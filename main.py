@@ -8,9 +8,11 @@ from typing import Any
 import numpy as np
 
 from bot.classify import classify_board, load_templates_with_labels
+from bot.clicker import click_pair
 from bot.capture import capture_board
-from bot.debug import draw_classification_overlay, save_debug_snapshot
-from bot.grid import draw_grid_overlay, get_board_roi
+from bot.debug import RunLogger, create_run_logger, draw_classification_overlay, save_debug_snapshot
+from bot.grid import draw_grid_overlay, get_board_roi, get_cell_center
+from bot.solver import find_pair
 
 
 class ConfigError(ValueError):
@@ -139,8 +141,20 @@ def _frame_mean_abs_diff(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.mean(diff))
 
 
-def _capture_stable_board(config: dict[str, Any]) -> np.ndarray:
+def _emit(message: str, logger: RunLogger | None = None) -> None:
+    print(message)
+    if logger is not None:
+        logger.log(message)
+
+
+def _capture_stable_board(config: dict[str, Any], logger: RunLogger | None = None) -> np.ndarray:
     settle_wait_ms = int(config["settle_wait_ms"])
+    if logger is not None:
+        logger.log(
+            f"capture stable start: settle_wait_ms={settle_wait_ms}, "
+            f"stability_check_frames={config['stability_check_frames']}, "
+            f"stability_pixel_diff_threshold={config['stability_pixel_diff_threshold']}"
+        )
     if settle_wait_ms > 0:
         time.sleep(settle_wait_ms / 1000.0)
 
@@ -149,36 +163,93 @@ def _capture_stable_board(config: dict[str, Any]) -> np.ndarray:
     max_attempts = max(6, required_stable * 6)
 
     prev = capture_board(config)
+    if logger is not None:
+        logger.save_snapshot(prev, "stability_frame_initial")
     stable_pairs = 0
-    for _ in range(max_attempts):
+    for attempt_idx in range(max_attempts):
         time.sleep(0.03)
         curr = capture_board(config)
         diff = _frame_mean_abs_diff(prev, curr)
         if diff <= diff_threshold:
             stable_pairs += 1
+            if logger is not None:
+                logger.log(
+                    f"stability attempt={attempt_idx + 1}/{max_attempts} diff={diff:.3f} "
+                    f"stable_pairs={stable_pairs}"
+                )
             if stable_pairs >= required_stable:
+                if logger is not None:
+                    logger.save_snapshot(curr, "stability_frame_final")
                 return curr
         else:
             stable_pairs = 0
+            if logger is not None:
+                logger.log(
+                    f"stability attempt={attempt_idx + 1}/{max_attempts} diff={diff:.3f} "
+                    "unstable reset"
+                )
         prev = curr
 
+    if logger is not None:
+        logger.save_snapshot(prev, "stability_frame_fallback")
     return prev
 
 
-def _classify_once(config: dict[str, Any], template_dir: str) -> None:
+def _classify_once(config: dict[str, Any], template_dir: str, logger: RunLogger | None = None) -> None:
     templates, template_labels = load_templates_with_labels(template_dir)
-    print(f"Loaded templates: {len(templates)} from {template_dir}")
+    _emit(f"Loaded templates: {len(templates)} from {template_dir}", logger=logger)
 
-    frame = _capture_stable_board(config)
+    frame = _capture_stable_board(config, logger=logger)
+    if logger is not None:
+        logger.save_snapshot(frame, "classify_frame")
     board, confidence = classify_board(frame, templates, config)
     unknown_count = int(np.count_nonzero(board == 0))
-    print(f"Classification complete. Unknown cells: {unknown_count}/{board.size}")
-    print("Board matrix:")
-    print(board)
+    _emit(f"Classification complete. Unknown cells: {unknown_count}/{board.size}", logger=logger)
+    _emit("Board matrix:", logger=logger)
+    _emit(str(board), logger=logger)
 
     overlay = draw_classification_overlay(frame, board, confidence, config, template_labels=template_labels)
     out_path = save_debug_snapshot(overlay, "classification_overlay", config)
-    print(f"Saved classification overlay: {out_path}")
+    _emit(f"Saved classification overlay: {out_path}", logger=logger)
+    if logger is not None:
+        logger.save_snapshot(overlay, "classification_overlay_run")
+
+
+def _click_once(
+    config: dict[str, Any],
+    template_dir: str,
+    dry_run: bool = False,
+    logger: RunLogger | None = None,
+) -> None:
+    templates, template_labels = load_templates_with_labels(template_dir)
+    _emit(f"Loaded templates: {len(templates)} from {template_dir}", logger=logger)
+
+    frame = _capture_stable_board(config, logger=logger)
+    if logger is not None:
+        logger.save_snapshot(frame, "click_frame")
+    board, confidence = classify_board(frame, templates, config)
+    unknown_count = int(np.count_nonzero(board == 0))
+    _emit(f"Classification complete. Unknown cells: {unknown_count}/{board.size}", logger=logger)
+    if logger is not None:
+        overlay = draw_classification_overlay(frame, board, confidence, config, template_labels=template_labels)
+        logger.save_snapshot(overlay, "click_classification_overlay")
+        logger.log(f"classification board:\n{board}")
+    pair = find_pair(board)
+    if pair is None:
+        _emit("No valid pair found; nothing to click.", logger=logger)
+        return
+
+    _emit(f"Selected pair: {pair}", logger=logger)
+    if logger is not None:
+        first, second = pair
+        first_xy = get_cell_center(first[0], first[1], config)
+        second_xy = get_cell_center(second[0], second[1], config)
+        logger.log(f"click plan: first={first} -> {first_xy}, second={second} -> {second_xy}, dry_run={dry_run}")
+    click_pair(pair, config, dry_run=dry_run)
+    if dry_run:
+        _emit("Dry run complete. No mouse clicks were executed.", logger=logger)
+    else:
+        _emit("Clicked selected pair.", logger=logger)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -192,6 +263,16 @@ def _parse_args() -> argparse.Namespace:
         "--classify-once",
         action="store_true",
         help="Capture once, classify all cells, and save labeled classification overlay.",
+    )
+    parser.add_argument(
+        "--click-once",
+        action="store_true",
+        help="Capture/classify/solve once and click one valid pair if found.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print click coordinates without executing real clicks.",
     )
     parser.add_argument(
         "--template-dir",
@@ -209,11 +290,24 @@ def main() -> int:
     try:
         config = load_config(str(config_path))
         _print_startup_summary(config)
+        run_logger: RunLogger | None = None
+        if bool(config.get("debug_enabled")) and (args.capture_once or args.classify_once or args.click_once):
+            run_logger = create_run_logger(config, run_name="main")
+            _emit(f"Run diagnostics directory: {run_logger.run_dir}", logger=run_logger)
+            run_logger.log(
+                f"flags capture_once={args.capture_once} classify_once={args.classify_once} "
+                f"click_once={args.click_once} dry_run={args.dry_run}"
+            )
         if args.capture_once:
             _capture_and_save_overlay(config)
+            if run_logger is not None:
+                run_logger.log("capture-once completed")
         if args.classify_once:
             template_dir = str((project_root / args.template_dir).resolve())
-            _classify_once(config, template_dir)
+            _classify_once(config, template_dir, logger=run_logger)
+        if args.click_once:
+            template_dir = str((project_root / args.template_dir).resolve())
+            _click_once(config, template_dir, dry_run=args.dry_run, logger=run_logger)
         return 0
     except ConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)
