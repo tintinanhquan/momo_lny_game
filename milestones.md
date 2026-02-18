@@ -16,8 +16,10 @@ Use this with the following principles:
 
 - Milestone 0: completed
 - Milestone 1: completed
-- Last validated artifact: `debug/grid_overlay_*.png` with center alignment confirmed
-- Current focus: Milestone 2 (template loading + classification)
+- Milestone 2: completed
+- Milestone 3: completed
+- Last validated artifact: `uv run pytest -k solver` (8 passed)
+- Current focus: Milestone 4 (click execution)
 
 ---
 
@@ -244,6 +246,24 @@ Convert each board cell into tile ID + confidence with template matching.
 - debug image shows per-cell labels and scores.
 - semantic template set works without requiring `tile_XX.png` naming.
 
+### Status
+
+Completed.
+
+Implemented:
+
+- `load_templates_with_labels(...)` with deterministic semantic filename mapping (`block.png -> -1`, others alphabetical `1..N`)
+- `classify_cell(...)` and `classify_board(...)` with preprocessing, thresholding, and confidence map output
+- fixed geometry cell cropping from `board_center`, `cell_w/cell_h`, and `gap_x/gap_y`
+- stable-frame capture guard before classification (`settle_wait_ms`, `stability_check_frames`, `stability_pixel_diff_threshold`)
+- one-shot classification path via `uv run python main.py --classify-once`
+- classification overlay with per-cell ID/label/score rendering
+
+Validated:
+
+- `uv run pytest` (all tests passing)
+- one-shot classification path integrated with template loading and overlay output
+
 ---
 
 ## Milestone 3 - Onet Solver (<=2 Turns)
@@ -289,6 +309,22 @@ Find at least one valid pair on a board using Onet constraints.
 
 - `uv run pytest -k solver` passes all tests.
 - `find_pair` returns `None` on dead boards.
+
+### Status
+
+Completed.
+
+Implemented:
+
+- `pad_board(...)` with one-cell zero border and shape validation
+- `can_connect(...)` using BFS over states `(r, c, dir, turns)` with turn pruning (`<=2`)
+- deterministic `find_pair(...)` scan order in row-major order
+- solver test coverage for direct, one-turn, two-turn, blocked, border-routing, and different-ID cases
+
+Validated:
+
+- `uv run pytest -k solver` (8 passed)
+- dead-board case returns `None` in solver tests
 
 ---
 
