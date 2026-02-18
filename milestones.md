@@ -19,8 +19,9 @@ Use this with the following principles:
 - Milestone 2: completed
 - Milestone 3: completed
 - Milestone 4: completed
-- Last validated artifact: `uv run pytest` (18 passed)
-- Current focus: Milestone 5 (runtime state + recovery)
+- Milestone 5: completed
+- Last validated artifact: `uv run pytest` (26 passed)
+- Current focus: Milestone 6 (full loop integration)
 
 ---
 
@@ -414,6 +415,23 @@ Maintain reliable runtime behavior across many moves.
 
 - state transitions are deterministic and logged.
 - bot stops safely on repeated failure.
+
+### Status
+
+Completed.
+
+Implemented:
+
+- runtime state API in `bot/state.py`: `init_runtime_state(...)`, `should_full_rescan(...)`, `apply_successful_move(...)`, `record_failure(...)`
+- deterministic counters/traces: `move_count`, `consecutive_failures`, `last_full_rescan_move`, rescan reason/request flags, and last event/pair metadata
+- rescan policy covering periodic cadence (`full_rescan_every_n_moves`), low-confidence frames, and failure/mismatch requests
+- one-shot runtime wiring in `main.py` for state initialization, transition logging, recovery attempts, and safe-stop trigger checks
+- new unit coverage in `tests/test_state.py` for initialization, transitions, triggers, and stop condition behavior
+
+Validated:
+
+- `uv run pytest -k state` (7 passed)
+- `uv run pytest` (26 passed)
 
 ---
 

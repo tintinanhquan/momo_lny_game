@@ -212,82 +212,7 @@ while running:
 
 ---
 
-## 9) Implementation Roadmap
-
-### Progress Snapshot (2026-02-17)
-
-- Phase 0 complete
-- Phase 1 complete
-- Latest validation: grid overlay generated and visually aligned on mirrored board
-- Next phase: Phase 2 (tile classification)
-
-## Phase 0 - Environment Setup
-
-- Initialize project with `uv`
-- Add runtime and dev dependencies
-- Create project folders and starter files
-- Verify runtime and tests execute through `uv run`
-
-Phase 0 commands:
-
-```bash
-uv init
-uv add opencv-python numpy pyautogui mss pillow
-uv add --dev pytest
-uv run python main.py
-uv run pytest
-```
-
-Deliverable: project boots with `uv run python main.py`.
-
-Status: complete.
-
-## Phase 1 - Calibration + Board Overlay
-
-- Implement manual ROI calibration
-- Render grid overlay on captured frame
-- Validate cell centers align with real tiles
-
-Deliverable: accurate board capture and grid mapping.
-
-Status: complete.
-
-## Phase 2 - Tile Classification
-
-- Load semantic templates (all matchable except `block.png`)
-- Map template IDs in alphabetical order for deterministic behavior
-- Classify all cells with score thresholds
-- Use fixed center-based geometry (`board_center_x`, `board_center_y`) and configured `cell/gap` pitch
-- Guard against transient animation frames with a short stability check before classification
-- Output board matrix and unknown count
-
-Deliverable: stable tile ID matrix on static screenshots.
-
-## Phase 3 - Solver Engine
-
-- Implement padded board BFS with <=2 turns
-- Add solver tests (normal, blocked, edge-routing cases)
-
-Deliverable: `find_pair(board)` works on tests.
-
-## Phase 4 - Click Execution
-
-- Convert cell index to absolute screen coordinate
-- Single-step one move with safety delay
-
-Deliverable: one valid pair gets removed consistently.
-
-## Phase 5 - Full Automation Loop
-
-- Integrate capture + classify + solve + click
-- Add recovery logic (periodic full rescan, fail limits)
-- Add stop/start hotkeys
-
-Deliverable: autonomous multi-move run on real level.
-
----
-
-## 10) Testing Plan
+## 9) Testing Plan
 
 ### Unit Tests
 
@@ -308,7 +233,7 @@ Deliverable: autonomous multi-move run on real level.
 
 ---
 
-## 11) Risk Controls
+## 10) Risk Controls
 
 - Keep mirroring window fixed (position, size, scale)
 - Use fixed center-based geometry and step sizes (`cell_w`, `cell_h`, `gap_x`, `gap_y`) for robust click/crop mapping
@@ -319,7 +244,7 @@ Deliverable: autonomous multi-move run on real level.
 
 ---
 
-## 12) Definition of Done (V1)
+## 11) Definition of Done (V1)
 
 V1 is complete when all are true:
 

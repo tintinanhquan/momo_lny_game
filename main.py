@@ -13,6 +13,7 @@ from bot.capture import capture_board
 from bot.debug import RunLogger, create_run_logger, draw_classification_overlay, save_debug_snapshot
 from bot.grid import draw_grid_overlay, get_board_roi, get_cell_center
 from bot.solver import find_pair
+from bot.state import apply_successful_move, init_runtime_state, record_failure, should_full_rescan
 
 
 class ConfigError(ValueError):
@@ -221,22 +222,54 @@ def _click_once(
     dry_run: bool = False,
     logger: RunLogger | None = None,
 ) -> None:
+    runtime_state = init_runtime_state(config)
     templates, template_labels = load_templates_with_labels(template_dir)
     _emit(f"Loaded templates: {len(templates)} from {template_dir}", logger=logger)
+    _emit(f"Runtime state initialized: {runtime_state}", logger=logger)
 
-    frame = _capture_stable_board(config, logger=logger)
-    if logger is not None:
-        logger.save_snapshot(frame, "click_frame")
-    board, confidence = classify_board(frame, templates, config)
-    unknown_count = int(np.count_nonzero(board == 0))
-    _emit(f"Classification complete. Unknown cells: {unknown_count}/{board.size}", logger=logger)
-    if logger is not None:
-        overlay = draw_classification_overlay(frame, board, confidence, config, template_labels=template_labels)
-        logger.save_snapshot(overlay, "click_classification_overlay")
-        logger.log(f"classification board:\n{board}")
+    board = np.zeros((int(config["rows"]), int(config["cols"])), dtype=np.int32)
+    confidence = np.zeros_like(board, dtype=np.float32)
+    max_recovery_attempts = 2
+    for attempt in range(max_recovery_attempts):
+        frame = _capture_stable_board(config, logger=logger)
+        if logger is not None:
+            logger.save_snapshot(frame, f"click_frame_attempt_{attempt + 1}")
+        board, confidence = classify_board(frame, templates, config)
+        unknown_count = int(np.count_nonzero(board == 0))
+        _emit(
+            f"Classification complete (attempt {attempt + 1}/{max_recovery_attempts}). "
+            f"Unknown cells: {unknown_count}/{board.size}",
+            logger=logger,
+        )
+        if logger is not None:
+            overlay = draw_classification_overlay(
+                frame,
+                board,
+                confidence,
+                config,
+                template_labels=template_labels,
+            )
+            logger.save_snapshot(overlay, f"click_classification_overlay_attempt_{attempt + 1}")
+            logger.log(f"classification board attempt={attempt + 1}:\n{board}")
+
+        if should_full_rescan(runtime_state, confidence, config):
+            reason = runtime_state.get("last_rescan_reason")
+            _emit(f"Full rescan trigger: {reason}", logger=logger)
+            if attempt < max_recovery_attempts - 1:
+                continue
+            _emit("Proceeding with latest frame after final recovery attempt.", logger=logger)
+        break
+
     pair = find_pair(board)
     if pair is None:
-        _emit("No valid pair found; nothing to click.", logger=logger)
+        record_failure(runtime_state)
+        _emit("No valid pair found; recorded failure.", logger=logger)
+        _emit(f"Runtime state: {runtime_state}", logger=logger)
+        if runtime_state["consecutive_failures"] >= int(config["max_consecutive_failures"]):
+            _emit(
+                "Stop trigger reached: consecutive_failures >= max_consecutive_failures.",
+                logger=logger,
+            )
         return
 
     _emit(f"Selected pair: {pair}", logger=logger)
@@ -245,7 +278,21 @@ def _click_once(
         first_xy = get_cell_center(first[0], first[1], config)
         second_xy = get_cell_center(second[0], second[1], config)
         logger.log(f"click plan: first={first} -> {first_xy}, second={second} -> {second_xy}, dry_run={dry_run}")
-    click_pair(pair, config, dry_run=dry_run)
+    try:
+        click_pair(pair, config, dry_run=dry_run)
+    except Exception:
+        record_failure(runtime_state)
+        _emit("Click execution failed; recorded failure.", logger=logger)
+        _emit(f"Runtime state: {runtime_state}", logger=logger)
+        if runtime_state["consecutive_failures"] >= int(config["max_consecutive_failures"]):
+            _emit(
+                "Stop trigger reached: consecutive_failures >= max_consecutive_failures.",
+                logger=logger,
+            )
+        raise
+
+    apply_successful_move(runtime_state, pair)
+    _emit(f"Runtime state: {runtime_state}", logger=logger)
     if dry_run:
         _emit("Dry run complete. No mouse clicks were executed.", logger=logger)
     else:
