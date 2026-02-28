@@ -1,0 +1,21 @@
+2026-03-01 00:26:16.599500 | run logger initialized
+2026-03-01 00:26:16.599638 | Run diagnostics directory: debug/runs/main_20260301_002616_599266
+2026-03-01 00:26:16.599694 | flags capture_once=False classify_once=False click_once=True dry_run=False
+2026-03-01 00:26:16.629930 | Loaded core templates: block.png, background.png
+2026-03-01 00:26:16.630110 | Runtime state initialized: {'move_count': 0, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'init', 'last_pair': None}
+2026-03-01 00:26:16.630183 | capture start: settle_wait_ms=500
+2026-03-01 00:26:17.258493 | snapshot saved: debug/runs/main_20260301_002616_599266/capture_frame_20260301_002617_256719.png
+2026-03-01 00:26:17.260205 | snapshot saved: debug/runs/main_20260301_002616_599266/click_frame_attempt_1_20260301_002617_258624.png
+2026-03-01 00:26:17.266045 | Classification complete (attempt 1/1). Unknown cells: 0/9
+2026-03-01 00:26:17.269186 | snapshot saved: debug/runs/main_20260301_002616_599266/click_classification_overlay_attempt_1_20260301_002617_267556.png
+2026-03-01 00:26:17.269499 | classification board attempt=1:
+[[ 1  1 -1]
+ [ 1  1  2]
+ [ 1  1  2]]
+2026-03-01 00:26:17.269593 | Selected pair: ((0, 0), (0, 1))
+2026-03-01 00:26:17.269651 | click plan: first=(0, 0) -> (3102, 472), second=(0, 1) -> (3181, 472), dry_run=False
+2026-03-01 00:26:17.269697 | Pre-click dismiss: tapping configured screen middle before pair click.
+2026-03-01 00:26:17.269745 | Pre-dismiss wait: sleeping 1.000s before dismiss click.
+2026-03-01 00:26:18.557145 | Post-dismiss wait: sleeping 1.500s before first tile click.
+2026-03-01 00:26:21.913360 | Runtime state: {'move_count': 1, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'move_success', 'last_pair': ((0, 0), (0, 1))}
+2026-03-01 00:26:21.914374 | Clicked selected pair.

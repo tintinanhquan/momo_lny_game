@@ -6,7 +6,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from bot.clicker import click_cell, click_pair
+from bot.clicker import click_cell, click_pair, click_screen_middle
 
 
 def _config() -> dict:
@@ -35,7 +35,7 @@ def test_click_cell_dry_run_prints_and_does_not_click(monkeypatch: pytest.Monkey
     click_cell((0, 0), _config(), dry_run=True)
 
     out = capsys.readouterr().out
-    assert "[dry-run] click_cell row=0 col=0 -> x=180 y=180" in out
+    assert "[dry-run] click_cell row=0 col=0 -> x=180 y=180 hold_ms=0" in out
     assert clicked == []
 
 
@@ -73,10 +73,63 @@ def test_click_pair_dry_run_does_not_click_but_still_waits(monkeypatch: pytest.M
     assert slept == [0.25]
 
 
+def test_click_pair_applies_inter_click_wait_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    clicked: list[tuple[int, int]] = []
+    slept: list[float] = []
+
+    monkeypatch.setattr("bot.clicker.pyautogui.click", lambda **kwargs: clicked.append((kwargs["x"], kwargs["y"])))
+    monkeypatch.setattr("bot.clicker.time.sleep", lambda seconds: slept.append(seconds))
+
+    cfg = _config()
+    cfg["inter_click_wait_ms"] = 150
+    click_pair(((0, 1), (1, 1)), cfg, dry_run=False)
+
+    assert clicked == [(200, 180), (200, 200)]
+    assert slept == [0.15, 0.25]
+
+
+def test_click_pair_double_clicks_first_tile_when_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    clicked: list[tuple[int, int]] = []
+    slept: list[float] = []
+
+    monkeypatch.setattr("bot.clicker.pyautogui.click", lambda **kwargs: clicked.append((kwargs["x"], kwargs["y"])))
+    monkeypatch.setattr("bot.clicker.time.sleep", lambda seconds: slept.append(seconds))
+
+    cfg = _config()
+    cfg["double_click_first_tile"] = True
+    cfg["first_tile_repeat_wait_ms"] = 120
+    cfg["inter_click_wait_ms"] = 150
+    click_pair(((0, 1), (1, 1)), cfg, dry_run=False)
+
+    assert clicked == [(200, 180), (200, 180), (200, 200)]
+    assert slept == [0.12, 0.15, 0.25]
+
+
 def test_click_cell_sets_pyautogui_pause(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("bot.clicker.pyautogui.click", lambda **kwargs: None)
     click_cell((1, 1), _config(), dry_run=False)
     assert pytest.approx(0.08) == sys.modules["bot.clicker"].pyautogui.PAUSE
+
+
+def test_click_cell_uses_press_hold_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    events: list[tuple[str, int, int] | tuple[str, float]] = []
+
+    def _fake_mouse_down(*, x: int, y: int) -> None:
+        events.append(("down", x, y))
+
+    def _fake_mouse_up(*, x: int, y: int) -> None:
+        events.append(("up", x, y))
+
+    monkeypatch.setattr("bot.clicker.pyautogui.click", lambda **kwargs: events.append(("click", kwargs["x"], kwargs["y"])))
+    monkeypatch.setattr("bot.clicker.pyautogui.mouseDown", _fake_mouse_down)
+    monkeypatch.setattr("bot.clicker.pyautogui.mouseUp", _fake_mouse_up)
+    monkeypatch.setattr("bot.clicker.time.sleep", lambda seconds: events.append(("sleep", seconds)))
+
+    cfg = _config()
+    cfg["tap_hold_ms"] = 90
+    click_cell((1, 1), cfg, dry_run=False)
+
+    assert events == [("down", 200, 200), ("sleep", 0.09), ("up", 200, 200)]
 
 
 def test_click_cell_out_of_range_raises() -> None:
@@ -84,3 +137,25 @@ def test_click_cell_out_of_range_raises() -> None:
         click_cell((3, 0), _config(), dry_run=True)
     with pytest.raises(ValueError, match="col"):
         click_cell((0, 3), _config(), dry_run=True)
+
+
+def test_click_screen_middle_dry_run_prints_and_does_not_click(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    clicked: list[tuple[int, int]] = []
+    monkeypatch.setattr("bot.clicker.pyautogui.click", lambda **kwargs: clicked.append((kwargs["x"], kwargs["y"])))
+
+    click_screen_middle(_config(), dry_run=True)
+
+    out = capsys.readouterr().out
+    assert "[dry-run] click_screen_middle -> x=200 y=200" in out
+    assert clicked == []
+
+
+def test_click_screen_middle_real_mode_clicks_center(monkeypatch: pytest.MonkeyPatch) -> None:
+    clicked: list[tuple[int, int]] = []
+    monkeypatch.setattr("bot.clicker.pyautogui.click", lambda **kwargs: clicked.append((kwargs["x"], kwargs["y"])))
+
+    click_screen_middle(_config(), dry_run=False)
+
+    assert clicked == [(200, 200)]

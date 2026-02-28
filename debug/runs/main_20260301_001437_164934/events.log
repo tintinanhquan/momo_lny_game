@@ -1,0 +1,24 @@
+2026-03-01 00:14:37.165205 | run logger initialized
+2026-03-01 00:14:37.165374 | Run diagnostics directory: debug/runs/main_20260301_001437_164934
+2026-03-01 00:14:37.165445 | flags capture_once=False classify_once=False click_once=True dry_run=False
+2026-03-01 00:14:37.193814 | Loaded core templates: block.png, background.png
+2026-03-01 00:14:37.193991 | Runtime state initialized: {'move_count': 0, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'init', 'last_pair': None}
+2026-03-01 00:14:37.194083 | capture stable start: settle_wait_ms=500, stability_check_frames=2, stability_pixel_diff_threshold=8.0
+2026-03-01 00:14:37.794127 | snapshot saved: debug/runs/main_20260301_001437_164934/stability_frame_initial_20260301_001437_792357.png
+2026-03-01 00:14:37.853859 | stability attempt=1/12 diff=0.000 stable_pairs=1
+2026-03-01 00:14:37.919877 | stability attempt=2/12 diff=0.000 stable_pairs=2
+2026-03-01 00:14:37.921958 | snapshot saved: debug/runs/main_20260301_001437_164934/stability_frame_final_20260301_001437_920000.png
+2026-03-01 00:14:37.923884 | snapshot saved: debug/runs/main_20260301_001437_164934/click_frame_attempt_1_20260301_001437_922026.png
+2026-03-01 00:14:37.930365 | Classification complete (attempt 1/1). Unknown cells: 2/9
+2026-03-01 00:14:37.934154 | snapshot saved: debug/runs/main_20260301_001437_164934/click_classification_overlay_attempt_1_20260301_001437_932375.png
+2026-03-01 00:14:37.934498 | classification board attempt=1:
+[[ 1  0  1]
+ [ 1 -1  1]
+ [ 1  1  0]]
+2026-03-01 00:14:37.934591 | Selected pair: ((0, 0), (0, 2))
+2026-03-01 00:14:37.934646 | click plan: first=(0, 0) -> (3102, 472), second=(0, 2) -> (3260, 472), dry_run=False
+2026-03-01 00:14:37.934691 | Pre-click dismiss: tapping configured screen middle before pair click.
+2026-03-01 00:14:37.934736 | Pre-dismiss wait: sleeping 1.000s before dismiss click.
+2026-03-01 00:14:39.515599 | Post-dismiss wait: sleeping 1.000s before first tile click.
+2026-03-01 00:14:43.184109 | Runtime state: {'move_count': 1, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'move_success', 'last_pair': ((0, 0), (0, 2))}
+2026-03-01 00:14:43.185445 | Clicked selected pair.

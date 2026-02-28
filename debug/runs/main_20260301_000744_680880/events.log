@@ -1,0 +1,39 @@
+2026-03-01 00:07:44.681139 | run logger initialized
+2026-03-01 00:07:44.681290 | Run diagnostics directory: debug/runs/main_20260301_000744_680880
+2026-03-01 00:07:44.681364 | flags capture_once=False classify_once=False click_once=True dry_run=False
+2026-03-01 00:07:44.711489 | Loaded core templates: block.png, background.png
+2026-03-01 00:07:44.711716 | Runtime state initialized: {'move_count': 0, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'init', 'last_pair': None}
+2026-03-01 00:07:44.711927 | capture stable start: settle_wait_ms=500, stability_check_frames=2, stability_pixel_diff_threshold=8.0
+2026-03-01 00:07:45.308853 | snapshot saved: debug/runs/main_20260301_000744_680880/stability_frame_initial_20260301_000745_307020.png
+2026-03-01 00:07:45.367828 | stability attempt=1/12 diff=0.000 stable_pairs=1
+2026-03-01 00:07:45.422769 | stability attempt=2/12 diff=0.000 stable_pairs=2
+2026-03-01 00:07:45.424443 | snapshot saved: debug/runs/main_20260301_000744_680880/stability_frame_final_20260301_000745_422933.png
+2026-03-01 00:07:45.426418 | snapshot saved: debug/runs/main_20260301_000744_680880/click_frame_attempt_1_20260301_000745_424527.png
+2026-03-01 00:07:45.431962 | Classification complete (attempt 1/2). Unknown cells: 4/9
+2026-03-01 00:07:45.435524 | snapshot saved: debug/runs/main_20260301_000744_680880/click_classification_overlay_attempt_1_20260301_000745_434097.png
+2026-03-01 00:07:45.435865 | classification board attempt=1:
+[[ 0  0  0]
+ [ 1 -1  1]
+ [ 1  1  0]]
+2026-03-01 00:07:45.436128 | Full rescan trigger: low_confidence
+2026-03-01 00:07:45.436188 | capture stable start: settle_wait_ms=500, stability_check_frames=2, stability_pixel_diff_threshold=8.0
+2026-03-01 00:07:45.995952 | snapshot saved: debug/runs/main_20260301_000744_680880/stability_frame_initial_20260301_000745_993513.png
+2026-03-01 00:07:46.064962 | stability attempt=1/12 diff=0.000 stable_pairs=1
+2026-03-01 00:07:46.126415 | stability attempt=2/12 diff=0.000 stable_pairs=2
+2026-03-01 00:07:46.128348 | snapshot saved: debug/runs/main_20260301_000744_680880/stability_frame_final_20260301_000746_126556.png
+2026-03-01 00:07:46.130155 | snapshot saved: debug/runs/main_20260301_000744_680880/click_frame_attempt_2_20260301_000746_128435.png
+2026-03-01 00:07:46.134871 | Classification complete (attempt 2/2). Unknown cells: 4/9
+2026-03-01 00:07:46.138632 | snapshot saved: debug/runs/main_20260301_000744_680880/click_classification_overlay_attempt_2_20260301_000746_136873.png
+2026-03-01 00:07:46.138824 | classification board attempt=2:
+[[ 0  0  0]
+ [ 1 -1  1]
+ [ 1  1  0]]
+2026-03-01 00:07:46.138915 | Full rescan trigger: low_confidence
+2026-03-01 00:07:46.138975 | Proceeding with latest frame after final recovery attempt.
+2026-03-01 00:07:46.139112 | Selected pair: ((1, 0), (1, 2))
+2026-03-01 00:07:46.139238 | click plan: first=(1, 0) -> (3102, 544), second=(1, 2) -> (3260, 544), dry_run=False
+2026-03-01 00:07:46.139332 | Pre-click dismiss: tapping configured screen middle before pair click.
+2026-03-01 00:07:46.139393 | Pre-dismiss wait: sleeping 0.500s before dismiss click.
+2026-03-01 00:07:47.200413 | Post-dismiss wait: sleeping 0.500s before first tile click.
+2026-03-01 00:07:49.735738 | Runtime state: {'move_count': 1, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': 'low_confidence', 'last_event': 'move_success', 'last_pair': ((1, 0), (1, 2))}
+2026-03-01 00:07:49.736789 | Clicked selected pair.

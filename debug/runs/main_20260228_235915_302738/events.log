@@ -1,0 +1,22 @@
+2026-02-28 23:59:15.303226 | run logger initialized
+2026-02-28 23:59:15.303356 | Run diagnostics directory: debug/runs/main_20260228_235915_302738
+2026-02-28 23:59:15.303412 | flags capture_once=False classify_once=False click_once=True dry_run=False
+2026-02-28 23:59:15.343078 | Loaded core templates: block.png, background.png
+2026-02-28 23:59:15.343296 | Runtime state initialized: {'move_count': 0, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'init', 'last_pair': None}
+2026-02-28 23:59:15.343469 | capture stable start: settle_wait_ms=180, stability_check_frames=2, stability_pixel_diff_threshold=8.0
+2026-02-28 23:59:15.629226 | snapshot saved: debug/runs/main_20260228_235915_302738/stability_frame_initial_20260228_235915_625956.png
+2026-02-28 23:59:15.689182 | stability attempt=1/12 diff=0.000 stable_pairs=1
+2026-02-28 23:59:15.753941 | stability attempt=2/12 diff=0.000 stable_pairs=2
+2026-02-28 23:59:15.756113 | snapshot saved: debug/runs/main_20260228_235915_302738/stability_frame_final_20260228_235915_754105.png
+2026-02-28 23:59:15.758071 | snapshot saved: debug/runs/main_20260228_235915_302738/click_frame_attempt_1_20260228_235915_756195.png
+2026-02-28 23:59:15.774185 | Classification complete (attempt 1/2). Unknown cells: 0/9
+2026-02-28 23:59:15.779051 | snapshot saved: debug/runs/main_20260228_235915_302738/click_classification_overlay_attempt_1_20260228_235915_777424.png
+2026-02-28 23:59:15.779629 | classification board attempt=1:
+[[ 1  1 -1]
+ [ 1  1  2]
+ [ 1  1  2]]
+2026-02-28 23:59:15.780044 | Selected pair: ((0, 0), (0, 1))
+2026-02-28 23:59:15.780115 | click plan: first=(0, 0) -> (3102, 472), second=(0, 1) -> (3181, 472), dry_run=False
+2026-02-28 23:59:15.780161 | Pre-click dismiss: tapping configured screen middle before pair click.
+2026-02-28 23:59:20.876565 | Runtime state: {'move_count': 1, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'move_success', 'last_pair': ((0, 0), (0, 1))}
+2026-02-28 23:59:20.877367 | Clicked selected pair.

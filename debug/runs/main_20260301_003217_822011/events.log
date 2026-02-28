@@ -1,0 +1,9 @@
+2026-03-01 00:32:17.822284 | run logger initialized
+2026-03-01 00:32:17.822440 | Run diagnostics directory: debug/runs/main_20260301_003217_822011
+2026-03-01 00:32:17.822501 | flags capture_once=False classify_once=False click_once=False guided_stream=True dry_run=False
+2026-03-01 00:32:17.862177 | Loaded core templates: block.png, background.png
+2026-03-01 00:32:17.862331 | Guided stream mode: keep game visible, then press Enter to process the latest frame.
+2026-03-01 00:32:17.862420 | Type 'q' then Enter to exit guided stream mode.
+2026-03-01 00:32:17.862500 | Runtime state initialized: {'move_count': 0, 'consecutive_failures': 0, 'last_full_rescan_move': 0, 'rescan_requested': False, 'last_rescan_reason': None, 'last_event': 'init', 'last_pair': None}
+2026-03-01 00:32:17.862681 | Starting capture stream (interval=50ms).
+2026-03-01 00:32:40.679000 | Capture stream stopped.

@@ -8,12 +8,12 @@ from typing import Any
 import numpy as np
 
 from bot.classify import classify_board, core_template_labels, load_core_templates
-from bot.clicker import click_pair
+from bot.clicker import click_pair, click_screen_middle
 from bot.capture import capture_board
 from bot.debug import RunLogger, create_run_logger, draw_classification_overlay, save_debug_snapshot
 from bot.grid import draw_grid_overlay, get_board_roi, get_cell_center
 from bot.solver import find_pair
-from bot.state import apply_successful_move, init_runtime_state, record_failure, should_full_rescan
+from bot.state import apply_successful_move, init_runtime_state, record_failure
 
 
 class ConfigError(ValueError):
@@ -41,8 +41,6 @@ def _validate_config(config: dict[str, Any]) -> None:
         "click_pause_ms": int,
         "post_click_wait_ms": int,
         "settle_wait_ms": int,
-        "stability_check_frames": int,
-        "stability_pixel_diff_threshold": float,
         "full_rescan_every_n_moves": int,
         "max_consecutive_failures": int,
         "debug_enabled": bool,
@@ -79,13 +77,40 @@ def _validate_config(config: dict[str, Any]) -> None:
         raise ConfigError("'empty_texture_threshold' must be >= 0.0")
     if not (0.0 <= float(config["tile_similarity_threshold"]) <= 1.0):
         raise ConfigError("'tile_similarity_threshold' must be between 0.0 and 1.0")
-    if float(config["stability_pixel_diff_threshold"]) < 0.0:
-        raise ConfigError("'stability_pixel_diff_threshold' must be >= 0.0")
-
     if config["click_pause_ms"] < 0 or config["post_click_wait_ms"] < 0 or config["settle_wait_ms"] < 0:
         raise ConfigError("'click_pause_ms', 'post_click_wait_ms', and 'settle_wait_ms' must be >= 0")
-    if config["stability_check_frames"] <= 0:
-        raise ConfigError("'stability_check_frames' must be > 0")
+    if "inter_click_wait_ms" in config:
+        if not _is_int(config["inter_click_wait_ms"]):
+            raise ConfigError("'inter_click_wait_ms' must be an integer when provided")
+        if int(config["inter_click_wait_ms"]) < 0:
+            raise ConfigError("'inter_click_wait_ms' must be >= 0")
+    if "dismiss_wait_ms" in config:
+        if not _is_int(config["dismiss_wait_ms"]):
+            raise ConfigError("'dismiss_wait_ms' must be an integer when provided")
+        if int(config["dismiss_wait_ms"]) < 0:
+            raise ConfigError("'dismiss_wait_ms' must be >= 0")
+    if "pre_dismiss_wait_ms" in config:
+        if not _is_int(config["pre_dismiss_wait_ms"]):
+            raise ConfigError("'pre_dismiss_wait_ms' must be an integer when provided")
+        if int(config["pre_dismiss_wait_ms"]) < 0:
+            raise ConfigError("'pre_dismiss_wait_ms' must be >= 0")
+    if "double_click_first_tile" in config and not isinstance(config["double_click_first_tile"], bool):
+        raise ConfigError("'double_click_first_tile' must be a boolean when provided")
+    if "first_tile_repeat_wait_ms" in config:
+        if not _is_int(config["first_tile_repeat_wait_ms"]):
+            raise ConfigError("'first_tile_repeat_wait_ms' must be an integer when provided")
+        if int(config["first_tile_repeat_wait_ms"]) < 0:
+            raise ConfigError("'first_tile_repeat_wait_ms' must be >= 0")
+    if "tap_hold_ms" in config:
+        if not _is_int(config["tap_hold_ms"]):
+            raise ConfigError("'tap_hold_ms' must be an integer when provided")
+        if int(config["tap_hold_ms"]) < 0:
+            raise ConfigError("'tap_hold_ms' must be >= 0")
+    if "first_tile_tap_hold_ms" in config:
+        if not _is_int(config["first_tile_tap_hold_ms"]):
+            raise ConfigError("'first_tile_tap_hold_ms' must be an integer when provided")
+        if int(config["first_tile_tap_hold_ms"]) < 0:
+            raise ConfigError("'first_tile_tap_hold_ms' must be >= 0")
     if config["full_rescan_every_n_moves"] <= 0:
         raise ConfigError("'full_rescan_every_n_moves' must be > 0")
     if config["max_consecutive_failures"] <= 0:
@@ -143,11 +168,6 @@ def _capture_and_save_overlay(config: dict[str, Any]) -> None:
     print(f"Saved grid overlay: {out_path}")
 
 
-def _frame_mean_abs_diff(a: np.ndarray, b: np.ndarray) -> float:
-    diff = np.abs(a.astype(np.int16) - b.astype(np.int16))
-    return float(np.mean(diff))
-
-
 def _emit(message: str, logger: RunLogger | None = None) -> None:
     print(message)
     if logger is not None:
@@ -157,49 +177,13 @@ def _emit(message: str, logger: RunLogger | None = None) -> None:
 def _capture_stable_board(config: dict[str, Any], logger: RunLogger | None = None) -> np.ndarray:
     settle_wait_ms = int(config["settle_wait_ms"])
     if logger is not None:
-        logger.log(
-            f"capture stable start: settle_wait_ms={settle_wait_ms}, "
-            f"stability_check_frames={config['stability_check_frames']}, "
-            f"stability_pixel_diff_threshold={config['stability_pixel_diff_threshold']}"
-        )
+        logger.log(f"capture start: settle_wait_ms={settle_wait_ms}")
     if settle_wait_ms > 0:
         time.sleep(settle_wait_ms / 1000.0)
-
-    required_stable = int(config["stability_check_frames"])
-    diff_threshold = float(config["stability_pixel_diff_threshold"])
-    max_attempts = max(6, required_stable * 6)
-
-    prev = capture_board(config)
+    frame = capture_board(config)
     if logger is not None:
-        logger.save_snapshot(prev, "stability_frame_initial")
-    stable_pairs = 0
-    for attempt_idx in range(max_attempts):
-        time.sleep(0.03)
-        curr = capture_board(config)
-        diff = _frame_mean_abs_diff(prev, curr)
-        if diff <= diff_threshold:
-            stable_pairs += 1
-            if logger is not None:
-                logger.log(
-                    f"stability attempt={attempt_idx + 1}/{max_attempts} diff={diff:.3f} "
-                    f"stable_pairs={stable_pairs}"
-                )
-            if stable_pairs >= required_stable:
-                if logger is not None:
-                    logger.save_snapshot(curr, "stability_frame_final")
-                return curr
-        else:
-            stable_pairs = 0
-            if logger is not None:
-                logger.log(
-                    f"stability attempt={attempt_idx + 1}/{max_attempts} diff={diff:.3f} "
-                    "unstable reset"
-                )
-        prev = curr
-
-    if logger is not None:
-        logger.save_snapshot(prev, "stability_frame_fallback")
-    return prev
+        logger.save_snapshot(frame, "capture_frame")
+    return frame
 
 
 def _classify_once(config: dict[str, Any], template_dir: str, logger: RunLogger | None = None) -> None:
@@ -235,38 +219,25 @@ def _click_once(
     _emit("Loaded core templates: block.png, background.png", logger=logger)
     _emit(f"Runtime state initialized: {runtime_state}", logger=logger)
 
-    board = np.zeros((int(config["rows"]), int(config["cols"])), dtype=np.int32)
-    confidence = np.zeros_like(board, dtype=np.float32)
-    max_recovery_attempts = 2
-    for attempt in range(max_recovery_attempts):
-        frame = _capture_stable_board(config, logger=logger)
-        if logger is not None:
-            logger.save_snapshot(frame, f"click_frame_attempt_{attempt + 1}")
-        board, confidence = classify_board(frame, block_template, background_template, config)
-        unknown_count = int(np.count_nonzero(board == 0))
-        _emit(
-            f"Classification complete (attempt {attempt + 1}/{max_recovery_attempts}). "
-            f"Unknown cells: {unknown_count}/{board.size}",
-            logger=logger,
+    frame = _capture_stable_board(config, logger=logger)
+    if logger is not None:
+        logger.save_snapshot(frame, "click_frame_attempt_1")
+    board, confidence = classify_board(frame, block_template, background_template, config)
+    unknown_count = int(np.count_nonzero(board == 0))
+    _emit(
+        f"Classification complete (attempt 1/1). Unknown cells: {unknown_count}/{board.size}",
+        logger=logger,
+    )
+    if logger is not None:
+        overlay = draw_classification_overlay(
+            frame,
+            board,
+            confidence,
+            config,
+            template_labels=template_labels,
         )
-        if logger is not None:
-            overlay = draw_classification_overlay(
-                frame,
-                board,
-                confidence,
-                config,
-                template_labels=template_labels,
-            )
-            logger.save_snapshot(overlay, f"click_classification_overlay_attempt_{attempt + 1}")
-            logger.log(f"classification board attempt={attempt + 1}:\n{board}")
-
-        if should_full_rescan(runtime_state, confidence, config):
-            reason = runtime_state.get("last_rescan_reason")
-            _emit(f"Full rescan trigger: {reason}", logger=logger)
-            if attempt < max_recovery_attempts - 1:
-                continue
-            _emit("Proceeding with latest frame after final recovery attempt.", logger=logger)
-        break
+        logger.save_snapshot(overlay, "click_classification_overlay_attempt_1")
+        logger.log(f"classification board attempt=1:\n{board}")
 
     pair = find_pair(board)
     if pair is None:
@@ -287,6 +258,25 @@ def _click_once(
         second_xy = get_cell_center(second[0], second[1], config)
         logger.log(f"click plan: first={first} -> {first_xy}, second={second} -> {second_xy}, dry_run={dry_run}")
     try:
+        _emit(
+            "Pre-click dismiss: tapping configured screen middle before pair click.",
+            logger=logger,
+        )
+        pre_dismiss_wait_seconds = max(0.0, float(config.get("pre_dismiss_wait_ms", 0)) / 1000.0)
+        if pre_dismiss_wait_seconds > 0:
+            _emit(
+                f"Pre-dismiss wait: sleeping {pre_dismiss_wait_seconds:.3f}s before dismiss click.",
+                logger=logger,
+            )
+            time.sleep(pre_dismiss_wait_seconds)
+        click_screen_middle(config, dry_run=dry_run)
+        dismiss_wait_seconds = max(0.0, float(config.get("dismiss_wait_ms", 0)) / 1000.0)
+        if dismiss_wait_seconds > 0:
+            _emit(
+                f"Post-dismiss wait: sleeping {dismiss_wait_seconds:.3f}s before first tile click.",
+                logger=logger,
+            )
+            time.sleep(dismiss_wait_seconds)
         click_pair(pair, config, dry_run=dry_run)
     except Exception:
         record_failure(runtime_state)
