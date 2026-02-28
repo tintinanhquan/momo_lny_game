@@ -19,7 +19,8 @@ Build a Python bot that plays an Onet-style iPhone game through iPhone Mirroring
 - Fixed board region from manual calibration
 - Configurable board size (`rows`, `cols`)
 - Hybrid classification:
-- template-based detection for `block.png` (`-1`) and `background.png` (`0`)
+  - template-based detection for `block.png` (`-1`)
+  - empty-cell detection using pink color ratio + low texture (`0`)
   - per-frame tile grouping by visual similarity for matchable tiles (`1..N`)
 - Blocked-cell support (`-1`)
 - Onet solver with <= 2 turns using BFS
@@ -76,7 +77,7 @@ momo-bot/
   config.json
   templates/
     block.png
-    background.png
+    background.png   # optional reference image for calibration/tuning
   bot/
     capture.py
     calibrate.py
@@ -136,10 +137,10 @@ This simplifies pathfinding around edges.
 
 - Load templates from `templates/`
 - Detect `block.png` and map it to `-1` (non-matchable obstacle)
-- Detect empty cells by matching `background.png` and map to `0`
+- Detect empty cells using pink HSV ratio and low texture threshold, then map to `0`
 - For remaining cells, compute pairwise visual similarity and group into per-frame cluster IDs
 - Assign grouped IDs as positive integers (`1..N`) only for the current frame
-- Return ID matrix and confidence matrix (block/background confidence + cluster confidence)
+- Return ID matrix and confidence matrix (block/empty confidence + cluster confidence)
 
 ### `solver.py`
 
@@ -172,7 +173,8 @@ This simplifies pathfinding around edges.
 - `cell_w`, `cell_h`
 - `gap_x`, `gap_y`
 - `block_match_threshold`
-- `background_match_threshold`
+- `empty_pink_ratio_threshold`
+- `empty_texture_threshold`
 - `tile_similarity_threshold`
 - `click_pause_ms`
 - `post_click_wait_ms`
@@ -224,7 +226,7 @@ while running:
 ### Integration Tests
 
 - block detection precision/recall on saved screenshots
-- background(empty) detection precision/recall on saved screenshots
+- pink-based empty detection precision/recall on saved screenshots
 - tile grouping consistency on saved screenshots (same-looking tiles share ID in frame)
 - coordinate mapping correctness for click targets
 

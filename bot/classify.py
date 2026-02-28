@@ -64,6 +64,29 @@ def _texture_std(cell_img: Frame) -> float:
     return float(np.std(gray))
 
 
+def _center_crop(cell_img: Frame, ratio: float = 0.6) -> Frame:
+    h, w = cell_img.shape[:2]
+    if h == 0 or w == 0:
+        return cell_img
+    ch = max(1, int(h * ratio))
+    cw = max(1, int(w * ratio))
+    y0 = max(0, (h - ch) // 2)
+    x0 = max(0, (w - cw) // 2)
+    return cell_img[y0 : y0 + ch, x0 : x0 + cw]
+
+
+def _pink_ratio(cell_img: Frame) -> float:
+    cropped = _center_crop(cell_img, ratio=0.6)
+    if cropped.size == 0:
+        return 0.0
+    hsv = cv2.cvtColor(cropped, cv2.COLOR_BGR2HSV)
+    # Red/pink wraps around HSV hue endpoints.
+    mask1 = cv2.inRange(hsv, (0, 80, 80), (12, 255, 255))
+    mask2 = cv2.inRange(hsv, (170, 80, 80), (179, 255, 255))
+    mask = cv2.bitwise_or(mask1, mask2)
+    return float(np.count_nonzero(mask) / mask.size)
+
+
 def classify_block_or_empty(
     cell_img: Frame,
     block_template: Frame,
@@ -79,22 +102,21 @@ def classify_block_or_empty(
     if cell_img.size == 0:
         return 0, 0.0
     block_score = _score_similarity(cell_img, block_template)
-    background_score = _score_similarity(cell_img, background_template)
+    pink_ratio = _pink_ratio(cell_img)
     texture_std = _texture_std(cell_img)
 
     block_threshold = float(config["block_match_threshold"])
-    background_threshold = float(config["background_match_threshold"])
+    empty_pink_ratio_threshold = float(config["empty_pink_ratio_threshold"])
     empty_texture_threshold = float(config["empty_texture_threshold"])
 
-    if block_score >= block_threshold and block_score >= background_score:
+    if block_score >= block_threshold:
         return -1, block_score
     if (
-        background_score >= background_threshold
-        and background_score >= block_score
+        pink_ratio >= empty_pink_ratio_threshold
         and texture_std <= empty_texture_threshold
     ):
-        return 0, background_score
-    return _UNRESOLVED_TILE, max(block_score, background_score)
+        return 0, pink_ratio
+    return _UNRESOLVED_TILE, max(block_score, pink_ratio)
 
 
 def _pair_similarity(a: Frame, b: Frame) -> float:

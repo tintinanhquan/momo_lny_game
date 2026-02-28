@@ -19,7 +19,7 @@ def _write_template(path: Path, bgr: tuple[int, int, int]) -> None:
 
 def test_load_core_templates_and_labels(tmp_path: Path) -> None:
     _write_template(tmp_path / "block.png", (30, 30, 30))
-    _write_template(tmp_path / "background.png", (0, 0, 0))
+    _write_template(tmp_path / "background.png", (74, 64, 242))
 
     block_template, background_template = load_core_templates(str(tmp_path))
     labels = core_template_labels()
@@ -32,7 +32,7 @@ def test_load_core_templates_and_labels(tmp_path: Path) -> None:
 
 def test_classify_board_two_template_pipeline(tmp_path: Path) -> None:
     _write_template(tmp_path / "block.png", (30, 30, 30))
-    _write_template(tmp_path / "background.png", (0, 0, 0))
+    _write_template(tmp_path / "background.png", (74, 64, 242))
     block_template, background_template = load_core_templates(str(tmp_path))
 
     rows, cols = 2, 2
@@ -40,7 +40,7 @@ def test_classify_board_two_template_pipeline(tmp_path: Path) -> None:
     frame[0:20, 0:20] = (240, 240, 240)  # tile A
     frame[0:20, 20:40] = (240, 240, 240)  # tile A
     frame[20:40, 0:20] = (30, 30, 30)  # block
-    frame[20:40, 20:40] = (0, 0, 0)  # background
+    frame[20:40, 20:40] = (74, 64, 242)  # background
 
     config = {
         "rows": rows,
@@ -52,8 +52,8 @@ def test_classify_board_two_template_pipeline(tmp_path: Path) -> None:
         "gap_x": 0,
         "gap_y": 0,
         "block_match_threshold": 0.8,
-        "background_match_threshold": 0.8,
-        "empty_texture_threshold": 5.0,
+        "empty_pink_ratio_threshold": 0.8,
+        "empty_texture_threshold": 4.0,
         "tile_similarity_threshold": 0.7,
     }
     board, confidence = classify_board(frame, block_template, background_template, config)
@@ -70,7 +70,7 @@ def test_classify_board_two_template_pipeline(tmp_path: Path) -> None:
 
 def test_similarity_grouping_marks_odd_group_as_ambiguous(tmp_path: Path) -> None:
     _write_template(tmp_path / "block.png", (30, 30, 30))
-    _write_template(tmp_path / "background.png", (0, 0, 0))
+    _write_template(tmp_path / "background.png", (74, 64, 242))
     block_template, background_template = load_core_templates(str(tmp_path))
 
     rows, cols = 2, 2
@@ -78,7 +78,7 @@ def test_similarity_grouping_marks_odd_group_as_ambiguous(tmp_path: Path) -> Non
     frame[0:20, 0:20] = (240, 240, 240)  # tile A
     frame[0:20, 20:40] = (240, 240, 240)  # tile A
     frame[20:40, 0:20] = (240, 240, 240)  # tile A (odd count)
-    frame[20:40, 20:40] = (0, 0, 0)  # background
+    frame[20:40, 20:40] = (74, 64, 242)  # background
 
     config = {
         "rows": rows,
@@ -90,8 +90,8 @@ def test_similarity_grouping_marks_odd_group_as_ambiguous(tmp_path: Path) -> Non
         "gap_x": 0,
         "gap_y": 0,
         "block_match_threshold": 0.8,
-        "background_match_threshold": 0.8,
-        "empty_texture_threshold": 5.0,
+        "empty_pink_ratio_threshold": 0.8,
+        "empty_texture_threshold": 4.0,
         "tile_similarity_threshold": 0.7,
     }
 

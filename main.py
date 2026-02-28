@@ -35,7 +35,7 @@ def _validate_config(config: dict[str, Any]) -> None:
         "gap_x": int,
         "gap_y": int,
         "block_match_threshold": float,
-        "background_match_threshold": float,
+        "empty_pink_ratio_threshold": float,
         "empty_texture_threshold": float,
         "tile_similarity_threshold": float,
         "click_pause_ms": int,
@@ -73,8 +73,8 @@ def _validate_config(config: dict[str, Any]) -> None:
 
     if not (0.0 <= float(config["block_match_threshold"]) <= 1.0):
         raise ConfigError("'block_match_threshold' must be between 0.0 and 1.0")
-    if not (0.0 <= float(config["background_match_threshold"]) <= 1.0):
-        raise ConfigError("'background_match_threshold' must be between 0.0 and 1.0")
+    if not (0.0 <= float(config["empty_pink_ratio_threshold"]) <= 1.0):
+        raise ConfigError("'empty_pink_ratio_threshold' must be between 0.0 and 1.0")
     if float(config["empty_texture_threshold"]) < 0.0:
         raise ConfigError("'empty_texture_threshold' must be >= 0.0")
     if not (0.0 <= float(config["tile_similarity_threshold"]) <= 1.0):

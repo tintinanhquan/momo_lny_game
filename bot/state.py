@@ -50,7 +50,7 @@ def should_full_rescan(
 
     threshold = min(
         float(config["block_match_threshold"]),
-        float(config["background_match_threshold"]),
+        float(config["empty_pink_ratio_threshold"]),
         float(config["tile_similarity_threshold"]),
     )
     if confidence.size == 0:

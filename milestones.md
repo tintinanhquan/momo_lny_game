@@ -20,8 +20,9 @@ Use this with the following principles:
 - Milestone 3: completed
 - Milestone 4: completed
 - Milestone 5: completed
-- Last validated artifact: `uv run pytest` (26 passed)
-- Current focus: Milestone 2R (hybrid classifier refactor), then Milestone 6
+- Milestone 2R: completed
+- Last validated artifact: `uv run pytest` (28 passed)
+- Current focus: Milestone 6 (full loop integration)
 
 ---
 
@@ -44,9 +45,9 @@ Use this with the following principles:
 - Post-match transient animation can corrupt one-shot captures; classification must use a settled/stable frame.
 - Detection strategy for V1:
   - use `block.png` template for blocked tile detection (`-1`)
-  - use `background.png` template for empty tile detection (`0`)
+  - detect empty tiles (`0`) using pink color ratio + low texture thresholds
   - assign positive tile IDs by per-frame visual similarity grouping (IDs do not need cross-frame semantics)
-  - `templates/` should contain only these two required images for V1: `block.png`, `background.png`
+  - `templates/block.png` is required; `templates/background.png` may be retained as an optional reference image for calibration/tuning
 
 ---
 
@@ -93,7 +94,8 @@ Required keys:
 - `gap_x`: int
 - `gap_y`: int
 - `block_match_threshold`: float
-- `background_match_threshold`: float
+- `empty_pink_ratio_threshold`: float
+- `empty_texture_threshold`: float
 - `tile_similarity_threshold`: float
 - `click_pause_ms`: int
 - `post_click_wait_ms`: int
@@ -282,7 +284,7 @@ Validated:
 
 Replace legacy full-template matching with hybrid detection:
 - template detection for `block.png`
-- template detection for `background.png` (empty cells)
+- empty-cell detection using pink ratio + low texture thresholds
 - per-frame tile grouping by visual similarity for matchable cells
 
 ### Files to implement
@@ -303,14 +305,15 @@ Replace legacy full-template matching with hybrid detection:
 ### Required tasks
 
 1. Restrict template dependency:
-   - require only `templates/block.png` and `templates/background.png` for classification
+   - require `templates/block.png` for classification
+   - keep `templates/background.png` optional as a calibration/reference artifact
    - remove dependency on per-tile semantic template set for positive IDs
 2. Implement per-cell pre-processing suitable for similarity grouping:
    - grayscale and normalize
    - optional center crop to reduce border noise
 3. Add block/empty first-pass classification:
    - detect block using template score and `block_match_threshold`
-   - detect empty cell using `background.png` score and `background_match_threshold`
+   - detect empty cell using `empty_pink_ratio_threshold` and `empty_texture_threshold`
 4. Group remaining cells by pairwise similarity:
    - build similarity matrix with deterministic ordering
    - group cells when similarity >= `tile_similarity_threshold`
@@ -319,13 +322,13 @@ Replace legacy full-template matching with hybrid detection:
    - confidence map stores block score or grouping confidence
    - mark ambiguous cells/groups as `0` and request rescan
 6. Diagnostics:
-   - save debug overlay including block/background labels, group IDs, and confidence values
+   - save debug overlay including block/empty labels, group IDs, and confidence values
 7. Wiring:
    - keep `main.py --classify-once` path working with the new classifier contract
 
 ### Acceptance criteria
 
-- `uv run python main.py --classify-once` runs using only `templates/block.png` and `templates/background.png`.
+- `uv run python main.py --classify-once` runs with `templates/block.png` and current pink/texture thresholds.
 - output matrix shape remains `(rows, cols)`.
 - same-looking non-block tiles in a frame usually share the same positive ID.
 - ambiguous grouping does not trigger blind clicks; it leads to rescan/unknown (`0`).
@@ -333,7 +336,22 @@ Replace legacy full-template matching with hybrid detection:
 
 ### Status
 
-Planned.
+Completed.
+
+Implemented:
+
+- hybrid classifier in `bot/classify.py` with:
+  - block detection from `block.png`
+  - empty detection from HSV pink ratio + texture uniformity
+  - deterministic per-frame similarity grouping for non-empty/non-block tiles
+- config schema migration to `empty_pink_ratio_threshold` and `empty_texture_threshold`
+- `main.py` and `bot/state.py` wiring updated for new thresholds
+- classify/state tests updated for new behavior and config keys
+
+Validated:
+
+- `uv run pytest -k classify` (3 passed)
+- `uv run pytest` (28 passed)
 
 ---
 
