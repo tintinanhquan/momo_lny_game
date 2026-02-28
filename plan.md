@@ -18,7 +18,9 @@ Build a Python bot that plays an Onet-style iPhone game through iPhone Mirroring
 
 - Fixed board region from manual calibration
 - Configurable board size (`rows`, `cols`)
-- Template-based tile classification
+- Hybrid classification:
+- template-based detection for `block.png` (`-1`) and `background.png` (`0`)
+  - per-frame tile grouping by visual similarity for matchable tiles (`1..N`)
 - Blocked-cell support (`-1`)
 - Onet solver with <= 2 turns using BFS
 - Automated clicking and loop execution
@@ -74,10 +76,7 @@ momo-bot/
   config.json
   templates/
     block.png
-    beer_blue.png
-    beer_white.png
-    cake_long.png
-    ...
+    background.png
   bot/
     capture.py
     calibrate.py
@@ -136,10 +135,11 @@ This simplifies pathfinding around edges.
 ### `classify.py`
 
 - Load templates from `templates/`
-- Assign positive tile IDs from semantic filenames using deterministic alphabetical order
-- Keep `block.png` mapped to `-1` (non-matchable obstacle)
-- Classify each cell by highest template score
-- Return ID matrix and confidence matrix
+- Detect `block.png` and map it to `-1` (non-matchable obstacle)
+- Detect empty cells by matching `background.png` and map to `0`
+- For remaining cells, compute pairwise visual similarity and group into per-frame cluster IDs
+- Assign grouped IDs as positive integers (`1..N`) only for the current frame
+- Return ID matrix and confidence matrix (block/background confidence + cluster confidence)
 
 ### `solver.py`
 
@@ -171,8 +171,9 @@ This simplifies pathfinding around edges.
 - `board_center_x`, `board_center_y`
 - `cell_w`, `cell_h`
 - `gap_x`, `gap_y`
-- `match_threshold`
-- `min_margin_to_second_best`
+- `block_match_threshold`
+- `background_match_threshold`
+- `tile_similarity_threshold`
 - `click_pause_ms`
 - `post_click_wait_ms`
 - `settle_wait_ms`
@@ -222,7 +223,9 @@ while running:
 
 ### Integration Tests
 
-- classification accuracy on saved board screenshots
+- block detection precision/recall on saved screenshots
+- background(empty) detection precision/recall on saved screenshots
+- tile grouping consistency on saved screenshots (same-looking tiles share ID in frame)
 - coordinate mapping correctness for click targets
 
 ### Live Run Checks
@@ -239,6 +242,7 @@ while running:
 - Use fixed center-based geometry and step sizes (`cell_w`, `cell_h`, `gap_x`, `gap_y`) for robust click/crop mapping
 - Use full-rescan fallback when confidence drops
 - Delay/retry classification until frame stabilizes after match animation
+- Treat ambiguous grouping as unsafe (request rescan instead of clicking)
 - Stop on repeated mismatches instead of blind clicking
 - Keep debug snapshots enabled until stable
 

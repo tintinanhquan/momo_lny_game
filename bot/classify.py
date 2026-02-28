@@ -12,112 +12,196 @@ Board = np.ndarray
 ConfidenceMap = np.ndarray
 Frame = np.ndarray
 
+Cell = tuple[int, int]
 TemplateLabelMap = dict[int, str]
+_UNRESOLVED_TILE = -2
 
 
-def load_templates_with_labels(template_dir: str) -> tuple[dict[int, Frame], TemplateLabelMap]:
-    """
-    Load tile templates from disk.
-
-    Naming:
-    - block.png -> -1
-    - all other filenames -> positive tile IDs by alphabetical order
-    """
+def load_core_templates(template_dir: str) -> tuple[Frame, Frame]:
+    """Load required core templates: block.png and background.png."""
     root = Path(template_dir)
     if not root.exists():
         raise FileNotFoundError(f"Template directory not found: {root}")
     if not root.is_dir():
         raise ValueError(f"Template path is not a directory: {root}")
 
-    templates: dict[int, Frame] = {}
-    labels: TemplateLabelMap = {}
-    image_files = [
-        p
-        for p in root.iterdir()
-        if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg"}
-    ]
-    if not image_files:
-        raise ValueError(f"No image templates found in {root}")
+    block_path = root / "block.png"
+    background_path = root / "background.png"
+    if not block_path.exists():
+        raise FileNotFoundError(f"Required template not found: {block_path}")
+    if not background_path.exists():
+        raise FileNotFoundError(f"Required template not found: {background_path}")
 
-    sorted_files = sorted(image_files, key=lambda p: p.stem.lower())
-    next_id = 1
-    for path in sorted_files:
-        label = path.stem.lower()
-        tile_id = -1 if label == "block" else next_id
-
-        img = cv2.imread(str(path), cv2.IMREAD_COLOR)
-        if img is None:
-            raise RuntimeError(f"Failed to read template image: {path}")
-        templates[tile_id] = img
-        labels[tile_id] = label
-        if tile_id != -1:
-            next_id += 1
-
-    if not templates:
-        raise ValueError(
-            f"No templates loaded from {root}. Expected block.png and tile images."
-        )
-
-    return dict(sorted(templates.items(), key=lambda item: item[0])), labels
+    block_template = cv2.imread(str(block_path), cv2.IMREAD_COLOR)
+    background_template = cv2.imread(str(background_path), cv2.IMREAD_COLOR)
+    if block_template is None:
+        raise RuntimeError(f"Failed to read template image: {block_path}")
+    if background_template is None:
+        raise RuntimeError(f"Failed to read template image: {background_path}")
+    return block_template, background_template
 
 
-def load_templates(template_dir: str) -> dict[int, Frame]:
-    templates, _ = load_templates_with_labels(template_dir)
-    return templates
+def core_template_labels() -> TemplateLabelMap:
+    """Return labels for overlay/debug rendering."""
+    return {-1: "block", 0: "background"}
 
 
 def _prepare_for_match(image: Frame, size: tuple[int, int] = (32, 32)) -> Frame:
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     resized = cv2.resize(gray, size, interpolation=cv2.INTER_AREA)
-    normalized = cv2.normalize(resized, None, 0, 255, cv2.NORM_MINMAX)
-    return normalized
+    return resized
 
 
-def classify_cell(cell_img: Frame, templates: dict[int, Frame], config: dict[str, Any]) -> tuple[int, float]:
-    """Classify one cell and return (tile_id, confidence)."""
+def _score_similarity(cell_img: Frame, template_img: Frame) -> float:
+    prepared_cell = _prepare_for_match(cell_img)
+    prepared_template = _prepare_for_match(template_img)
+    diff = np.abs(prepared_cell.astype(np.int16) - prepared_template.astype(np.int16))
+    return 1.0 - float(np.mean(diff) / 255.0)
+
+
+def _texture_std(cell_img: Frame) -> float:
+    gray = cv2.cvtColor(cell_img, cv2.COLOR_BGR2GRAY)
+    return float(np.std(gray))
+
+
+def classify_block_or_empty(
+    cell_img: Frame,
+    block_template: Frame,
+    background_template: Frame,
+    config: dict[str, Any],
+) -> tuple[int, float]:
+    """
+    First-pass classifier:
+    - returns -1 for block
+    - returns 0 for background/empty
+    - returns _UNRESOLVED_TILE for non-block/non-empty tiles
+    """
     if cell_img.size == 0:
         return 0, 0.0
-    if not templates:
-        raise ValueError("No templates available for classification.")
+    block_score = _score_similarity(cell_img, block_template)
+    background_score = _score_similarity(cell_img, background_template)
+    texture_std = _texture_std(cell_img)
 
-    prepared_cell = _prepare_for_match(cell_img)
-    scored: list[tuple[int, float]] = []
+    block_threshold = float(config["block_match_threshold"])
+    background_threshold = float(config["background_match_threshold"])
+    empty_texture_threshold = float(config["empty_texture_threshold"])
 
-    for tile_id, template in templates.items():
-        prepared_template = _prepare_for_match(template)
-        score = float(cv2.matchTemplate(prepared_cell, prepared_template, cv2.TM_CCOEFF_NORMED)[0, 0])
-        scored.append((tile_id, score))
+    if block_score >= block_threshold and block_score >= background_score:
+        return -1, block_score
+    if (
+        background_score >= background_threshold
+        and background_score >= block_score
+        and texture_std <= empty_texture_threshold
+    ):
+        return 0, background_score
+    return _UNRESOLVED_TILE, max(block_score, background_score)
 
-    scored.sort(key=lambda item: item[1], reverse=True)
-    best_id, best_score = scored[0]
-    second_best = scored[1][1] if len(scored) > 1 else -1.0
-    margin = best_score - second_best
 
-    threshold = float(config["match_threshold"])
-    min_margin = float(config["min_margin_to_second_best"])
+def _pair_similarity(a: Frame, b: Frame) -> float:
+    return float(cv2.matchTemplate(a, b, cv2.TM_CCOEFF_NORMED)[0, 0])
 
-    if best_score < threshold or margin < min_margin:
-        return 0, best_score
-    return best_id, best_score
+
+def group_tiles_by_similarity(
+    cell_imgs: dict[Cell, Frame],
+    config: dict[str, Any],
+) -> tuple[dict[Cell, int], dict[Cell, float]]:
+    """
+    Group unresolved tile cells by pairwise visual similarity.
+    Groups with odd size are marked ambiguous (ID 0) for safety.
+    """
+    if not cell_imgs:
+        return {}, {}
+
+    threshold = float(config["tile_similarity_threshold"])
+    cells = sorted(cell_imgs.keys())
+    prepared: dict[Cell, Frame] = {cell: _prepare_for_match(cell_imgs[cell]) for cell in cells}
+    index_by_cell = {cell: idx for idx, cell in enumerate(cells)}
+    parent = list(range(len(cells)))
+
+    def find(idx: int) -> int:
+        while parent[idx] != idx:
+            parent[idx] = parent[parent[idx]]
+            idx = parent[idx]
+        return idx
+
+    def union(a_idx: int, b_idx: int) -> None:
+        ra = find(a_idx)
+        rb = find(b_idx)
+        if ra != rb:
+            parent[rb] = ra
+
+    pair_scores: dict[tuple[Cell, Cell], float] = {}
+    for i in range(len(cells)):
+        for j in range(i + 1, len(cells)):
+            sim = _pair_similarity(prepared[cells[i]], prepared[cells[j]])
+            pair_scores[(cells[i], cells[j])] = sim
+            if sim >= threshold:
+                union(i, j)
+
+    groups: dict[int, list[Cell]] = {}
+    for cell in cells:
+        root = find(index_by_cell[cell])
+        groups.setdefault(root, []).append(cell)
+
+    sorted_groups = sorted((sorted(group_cells) for group_cells in groups.values()), key=lambda g: g[0])
+
+    ids: dict[Cell, int] = {}
+    confidence: dict[Cell, float] = {}
+    next_id = 1
+    for group_cells in sorted_groups:
+        group_size = len(group_cells)
+        if group_size < 2 or (group_size % 2) != 0:
+            for cell in group_cells:
+                ids[cell] = 0
+                confidence[cell] = 0.0
+            continue
+
+        for cell in group_cells:
+            sims: list[float] = []
+            for other in group_cells:
+                if other == cell:
+                    continue
+                a, b = (cell, other) if cell < other else (other, cell)
+                sims.append(pair_scores.get((a, b), 0.0))
+            mean_sim = float(np.mean(sims)) if sims else 1.0
+            ids[cell] = next_id
+            confidence[cell] = mean_sim
+        next_id += 1
+    return ids, confidence
 
 
 def classify_board(
     frame: Frame,
-    templates: dict[int, Frame],
+    block_template: Frame,
+    background_template: Frame,
     config: dict[str, Any],
 ) -> tuple[Board, ConfidenceMap]:
-    """Classify all cells in board ROI frame."""
+    """Classify all cells using block/background templates + similarity grouping."""
     rows = int(config["rows"])
     cols = int(config["cols"])
 
     board = np.zeros((rows, cols), dtype=np.int32)
     confidence = np.zeros((rows, cols), dtype=np.float32)
+    unresolved_cells: dict[Cell, Frame] = {}
 
     for row in range(rows):
         for col in range(cols):
             cell_img = crop_cell(frame, row, col, config)
-            tile_id, score = classify_cell(cell_img, templates, config)
-            board[row, col] = tile_id
-            confidence[row, col] = np.float32(score)
+            tile_id, score = classify_block_or_empty(
+                cell_img,
+                block_template,
+                background_template,
+                config,
+            )
+            if tile_id == _UNRESOLVED_TILE:
+                unresolved_cells[(row, col)] = cell_img
+            else:
+                board[row, col] = tile_id
+                confidence[row, col] = np.float32(score)
+
+    grouped_ids, grouped_conf = group_tiles_by_similarity(unresolved_cells, config)
+    for (row, col), tile_id in grouped_ids.items():
+        board[row, col] = tile_id
+        confidence[row, col] = np.float32(grouped_conf.get((row, col), 0.0))
 
     return board, confidence

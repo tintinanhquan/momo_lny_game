@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 
-from bot.classify import classify_board, load_templates_with_labels
+from bot.classify import classify_board, core_template_labels, load_core_templates
 from bot.clicker import click_pair
 from bot.capture import capture_board
 from bot.debug import RunLogger, create_run_logger, draw_classification_overlay, save_debug_snapshot
@@ -34,8 +34,10 @@ def _validate_config(config: dict[str, Any]) -> None:
         "cell_h": int,
         "gap_x": int,
         "gap_y": int,
-        "match_threshold": float,
-        "min_margin_to_second_best": float,
+        "block_match_threshold": float,
+        "background_match_threshold": float,
+        "empty_texture_threshold": float,
+        "tile_similarity_threshold": float,
         "click_pause_ms": int,
         "post_click_wait_ms": int,
         "settle_wait_ms": int,
@@ -69,10 +71,14 @@ def _validate_config(config: dict[str, Any]) -> None:
     if config["gap_x"] < 0 or config["gap_y"] < 0:
         raise ConfigError("'gap_x' and 'gap_y' must be >= 0")
 
-    if not (0.0 <= float(config["match_threshold"]) <= 1.0):
-        raise ConfigError("'match_threshold' must be between 0.0 and 1.0")
-    if not (0.0 <= float(config["min_margin_to_second_best"]) <= 1.0):
-        raise ConfigError("'min_margin_to_second_best' must be between 0.0 and 1.0")
+    if not (0.0 <= float(config["block_match_threshold"]) <= 1.0):
+        raise ConfigError("'block_match_threshold' must be between 0.0 and 1.0")
+    if not (0.0 <= float(config["background_match_threshold"]) <= 1.0):
+        raise ConfigError("'background_match_threshold' must be between 0.0 and 1.0")
+    if float(config["empty_texture_threshold"]) < 0.0:
+        raise ConfigError("'empty_texture_threshold' must be >= 0.0")
+    if not (0.0 <= float(config["tile_similarity_threshold"]) <= 1.0):
+        raise ConfigError("'tile_similarity_threshold' must be between 0.0 and 1.0")
     if float(config["stability_pixel_diff_threshold"]) < 0.0:
         raise ConfigError("'stability_pixel_diff_threshold' must be >= 0.0")
 
@@ -197,13 +203,14 @@ def _capture_stable_board(config: dict[str, Any], logger: RunLogger | None = Non
 
 
 def _classify_once(config: dict[str, Any], template_dir: str, logger: RunLogger | None = None) -> None:
-    templates, template_labels = load_templates_with_labels(template_dir)
-    _emit(f"Loaded templates: {len(templates)} from {template_dir}", logger=logger)
+    block_template, background_template = load_core_templates(template_dir)
+    template_labels = core_template_labels()
+    _emit("Loaded core templates: block.png, background.png", logger=logger)
 
     frame = _capture_stable_board(config, logger=logger)
     if logger is not None:
         logger.save_snapshot(frame, "classify_frame")
-    board, confidence = classify_board(frame, templates, config)
+    board, confidence = classify_board(frame, block_template, background_template, config)
     unknown_count = int(np.count_nonzero(board == 0))
     _emit(f"Classification complete. Unknown cells: {unknown_count}/{board.size}", logger=logger)
     _emit("Board matrix:", logger=logger)
@@ -223,8 +230,9 @@ def _click_once(
     logger: RunLogger | None = None,
 ) -> None:
     runtime_state = init_runtime_state(config)
-    templates, template_labels = load_templates_with_labels(template_dir)
-    _emit(f"Loaded templates: {len(templates)} from {template_dir}", logger=logger)
+    block_template, background_template = load_core_templates(template_dir)
+    template_labels = core_template_labels()
+    _emit("Loaded core templates: block.png, background.png", logger=logger)
     _emit(f"Runtime state initialized: {runtime_state}", logger=logger)
 
     board = np.zeros((int(config["rows"]), int(config["cols"])), dtype=np.int32)
@@ -234,7 +242,7 @@ def _click_once(
         frame = _capture_stable_board(config, logger=logger)
         if logger is not None:
             logger.save_snapshot(frame, f"click_frame_attempt_{attempt + 1}")
-        board, confidence = classify_board(frame, templates, config)
+        board, confidence = classify_board(frame, block_template, background_template, config)
         unknown_count = int(np.count_nonzero(board == 0))
         _emit(
             f"Classification complete (attempt {attempt + 1}/{max_recovery_attempts}). "

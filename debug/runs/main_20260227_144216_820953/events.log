@@ -1,0 +1,17 @@
+2026-02-27 14:42:16.821197 | run logger initialized
+2026-02-27 14:42:16.821351 | Run diagnostics directory: debug/runs/main_20260227_144216_820953
+2026-02-27 14:42:16.821412 | flags capture_once=False classify_once=True click_once=False dry_run=False
+2026-02-27 14:42:16.861460 | Loaded core templates: block.png, background.png
+2026-02-27 14:42:16.861633 | capture stable start: settle_wait_ms=180, stability_check_frames=2, stability_pixel_diff_threshold=8.0
+2026-02-27 14:42:17.141804 | snapshot saved: debug/runs/main_20260227_144216_820953/stability_frame_initial_20260227_144217_138392.png
+2026-02-27 14:42:17.209443 | stability attempt=1/12 diff=0.000 stable_pairs=1
+2026-02-27 14:42:17.269051 | stability attempt=2/12 diff=0.000 stable_pairs=2
+2026-02-27 14:42:17.271110 | snapshot saved: debug/runs/main_20260227_144216_820953/stability_frame_final_20260227_144217_269200.png
+2026-02-27 14:42:17.273011 | snapshot saved: debug/runs/main_20260227_144216_820953/classify_frame_20260227_144217_271188.png
+2026-02-27 14:42:17.305000 | Classification complete. Unknown cells: 6/9
+2026-02-27 14:42:17.305135 | Board matrix:
+2026-02-27 14:42:17.306994 | [[ 0  0  0]
+ [ 0 -1  0]
+ [ 1  1  0]]
+2026-02-27 14:42:17.312968 | Saved classification overlay: debug/classification_overlay_20260227_144217_311123.png
+2026-02-27 14:42:17.319133 | snapshot saved: debug/runs/main_20260227_144216_820953/classification_overlay_run_20260227_144217_313053.png

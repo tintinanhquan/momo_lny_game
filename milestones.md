@@ -16,12 +16,12 @@ Use this with the following principles:
 
 - Milestone 0: completed
 - Milestone 1: completed
-- Milestone 2: completed
+- Milestone 2: completed (legacy full-template classifier)
 - Milestone 3: completed
 - Milestone 4: completed
 - Milestone 5: completed
 - Last validated artifact: `uv run pytest` (26 passed)
-- Current focus: Milestone 6 (full loop integration)
+- Current focus: Milestone 2R (hybrid classifier refactor), then Milestone 6
 
 ---
 
@@ -42,6 +42,11 @@ Use this with the following principles:
 - Avoid hidden global state; pass data through function inputs/outputs.
 - Board contents can shift after matches (up/down/left/right), but always remain inside capture ROI.
 - Post-match transient animation can corrupt one-shot captures; classification must use a settled/stable frame.
+- Detection strategy for V1:
+  - use `block.png` template for blocked tile detection (`-1`)
+  - use `background.png` template for empty tile detection (`0`)
+  - assign positive tile IDs by per-frame visual similarity grouping (IDs do not need cross-frame semantics)
+  - `templates/` should contain only these two required images for V1: `block.png`, `background.png`
 
 ---
 
@@ -52,6 +57,8 @@ main.py
 config.json
 templates/
   .gitkeep
+  block.png
+  background.png
 bot/
   __init__.py
   capture.py
@@ -85,8 +92,9 @@ Required keys:
 - `cell_h`: int
 - `gap_x`: int
 - `gap_y`: int
-- `match_threshold`: float
-- `min_margin_to_second_best`: float
+- `block_match_threshold`: float
+- `background_match_threshold`: float
+- `tile_similarity_threshold`: float
 - `click_pause_ms`: int
 - `post_click_wait_ms`: int
 - `settle_wait_ms`: int
@@ -204,7 +212,7 @@ Validated:
 
 ---
 
-## Milestone 2 - Template Loader + Classification
+## Milestone 2 - Legacy Template Loader + Classification
 
 ### Goal
 
@@ -265,6 +273,67 @@ Validated:
 
 - `uv run pytest` (all tests passing)
 - one-shot classification path integrated with template loading and overlay output
+
+---
+
+## Milestone 2R - Hybrid Classification Refactor
+
+### Goal
+
+Replace legacy full-template matching with hybrid detection:
+- template detection for `block.png`
+- template detection for `background.png` (empty cells)
+- per-frame tile grouping by visual similarity for matchable cells
+
+### Files to implement
+
+- `bot/classify.py`
+- `bot/grid.py` (if center-crop helper is needed for robust similarity)
+- `bot/debug.py`
+- `main.py`
+- `tests/test_classify.py` (new)
+
+### Required functions
+
+- `load_core_templates(template_dir: str) -> tuple[Frame, Frame]`
+- `classify_block_or_empty(cell_img: Frame, block_template: Frame, background_template: Frame, config: dict) -> tuple[int, float]`
+- `group_tiles_by_similarity(cell_imgs: dict[Cell, Frame], config: dict) -> tuple[dict[Cell, int], dict[Cell, float]]`
+- `classify_board(frame: Frame, block_template: Frame, background_template: Frame, config: dict) -> tuple[Board, ConfidenceMap]`
+
+### Required tasks
+
+1. Restrict template dependency:
+   - require only `templates/block.png` and `templates/background.png` for classification
+   - remove dependency on per-tile semantic template set for positive IDs
+2. Implement per-cell pre-processing suitable for similarity grouping:
+   - grayscale and normalize
+   - optional center crop to reduce border noise
+3. Add block/empty first-pass classification:
+   - detect block using template score and `block_match_threshold`
+   - detect empty cell using `background.png` score and `background_match_threshold`
+4. Group remaining cells by pairwise similarity:
+   - build similarity matrix with deterministic ordering
+   - group cells when similarity >= `tile_similarity_threshold`
+   - assign deterministic positive IDs (`1..N`) from groups
+5. Confidence handling and safety:
+   - confidence map stores block score or grouping confidence
+   - mark ambiguous cells/groups as `0` and request rescan
+6. Diagnostics:
+   - save debug overlay including block/background labels, group IDs, and confidence values
+7. Wiring:
+   - keep `main.py --classify-once` path working with the new classifier contract
+
+### Acceptance criteria
+
+- `uv run python main.py --classify-once` runs using only `templates/block.png` and `templates/background.png`.
+- output matrix shape remains `(rows, cols)`.
+- same-looking non-block tiles in a frame usually share the same positive ID.
+- ambiguous grouping does not trigger blind clicks; it leads to rescan/unknown (`0`).
+- `uv run pytest -k classify` passes.
+
+### Status
+
+Planned.
 
 ---
 
@@ -531,12 +600,13 @@ Mark V1 complete only when all checklist items pass.
 1. Milestone 0
 2. Milestone 1
 3. Milestone 2
-4. Milestone 3
-5. Milestone 4
-6. Milestone 5
-7. Milestone 6
-8. Milestone 7
-9. Milestone 8
+4. Milestone 2R
+5. Milestone 3
+6. Milestone 4
+7. Milestone 5
+8. Milestone 6
+9. Milestone 7
+10. Milestone 8
 
 At the end of each milestone:
 

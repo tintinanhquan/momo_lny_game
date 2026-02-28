@@ -48,7 +48,11 @@ def should_full_rescan(
     if bool(state.get("rescan_requested", False)):
         reasons.append("failure_or_mismatch")
 
-    threshold = float(config["match_threshold"])
+    threshold = min(
+        float(config["block_match_threshold"]),
+        float(config["background_match_threshold"]),
+        float(config["tile_similarity_threshold"]),
+    )
     if confidence.size == 0:
         reasons.append("empty_confidence")
     elif bool(np.any(confidence < threshold)):

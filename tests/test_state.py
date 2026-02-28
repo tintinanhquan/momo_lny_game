@@ -12,7 +12,9 @@ from bot.state import apply_successful_move, init_runtime_state, record_failure,
 def _config() -> dict:
     return {
         "full_rescan_every_n_moves": 5,
-        "match_threshold": 0.3,
+        "block_match_threshold": 0.3,
+        "background_match_threshold": 0.3,
+        "tile_similarity_threshold": 0.3,
         "max_consecutive_failures": 4,
     }
 
